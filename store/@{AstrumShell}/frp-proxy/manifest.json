@@ -1,0 +1,26 @@
+{
+  "metadata": {
+    "name": "frp-proxy",
+    "version": "1.1.0",
+    "author": "AstrumShell",
+    "description": "FRP 内网穿透服务 - 提供安全的内网服务暴露/反向代理/WebUI 配置管理",
+    "type": "service"
+  },
+  "config": {
+    "enabled": true,
+    "args": {
+      "server_addr": "",
+      "server_port": 7000,
+      "auth_token": "",
+      "tcp_mux": true,
+      "heartbeat_interval": 30,
+      "heartbeat_timeout": 90,
+      "admin_addr": "127.0.0.1",
+      "admin_port": 7400,
+      "log_level": "info",
+      "proxy_configs_dir": "config/proxies"
+    }
+  },
+  "dependencies": ["http-api", "i18n"],
+  "permissions": ["lifecycle", "plugin-storage"]
+}

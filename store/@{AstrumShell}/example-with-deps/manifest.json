@@ -1,0 +1,16 @@
+{
+  "metadata": {
+    "name": "example-with-deps",
+    "version": "1.0.0",
+    "author": "AstrumShell",
+    "description": "示例插件 - 演示如何声明系统依赖",
+    "type": "example"
+  },
+  "config": {
+    "enabled": true,
+    "args": {}
+  },
+  "dependencies": [],
+  "system_dependencies": ["curl", "git", "wget"],
+  "permissions": []
+}

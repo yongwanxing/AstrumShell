@@ -1,0 +1,30 @@
+{
+  "name": "@AstrumShell/nodejs-adapter",
+  "version": "1.2.0",
+  "description": "Node.js runtime adapter for AstrumShell - provides Node.js and npm capabilities for other plugins",
+  "author": "AstrumShell Team",
+  "license": "MIT",
+  "runtime": {
+    "type": "python",
+    "entry_point": "main.py",
+    "requirements": ["subprocess", "json", "os", "shutil"]
+  },
+  "capabilities": [
+    "nodejs_runtime",
+    "npm_package_manager",
+    "dependency_isolation",
+    "script_execution"
+  ],
+  "config": {
+    "node_path": "/usr/bin/node",
+    "npm_path": "/usr/bin/npm",
+    "default_registry": "https://registry.npmjs.org",
+    "cache_dir": "~/.astrumshell/nodejs-cache"
+  },
+  "api": {
+    "install": "Install npm packages to plugin-specific directory",
+    "run": "Execute Node.js scripts or npm commands",
+    "check_version": "Check Node.js and npm versions",
+    "list_packages": "List installed packages in a plugin directory"
+  }
+}

@@ -1,0 +1,43 @@
+services:
+  astrumshell:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: astrumshell
+    restart: unless-stopped
+    ports:
+      - "8080:8080"   # HTTP API + 网站
+      - "8081:8081"   # WebSocket
+      - "8082:8082"   # HTTP TCP
+    volumes:
+      # 插件热更新（无需重建镜像）
+      - ./store/@{AstrumShell}:/app/store/@{AstrumShell}:ro
+      - ./store/@{Upstream}:/app/store/@{Upstream}:ro
+      # 数据持久化
+      - astrumshell-data:/app/data
+      # 配置可覆盖
+      - ./config.yaml:/app/config.yaml:ro
+    environment:
+      - TZ=Asia/Shanghai
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 128M
+
+volumes:
+  astrumshell-data:
+    driver: local

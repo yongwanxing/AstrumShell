@@ -1,0 +1,36 @@
+{
+  "logSyncInterval": {
+    "type": "number",
+    "name": "日志同步间隔",
+    "description": "日志自动同步的时间间隔（秒）",
+    "default": 2,
+    "min": 1,
+    "max": 10,
+    "order": 1
+  },
+  "sshPort": {
+    "type": "number",
+    "name": "SSH 端口",
+    "description": "SSH 连接的默认端口",
+    "default": 8022,
+    "min": 1,
+    "max": 65535,
+    "order": 2
+  },
+  "autoInstallSSH": {
+    "type": "boolean",
+    "name": "自动安装 SSH",
+    "description": "连接时自动检测并安装 SSH 服务",
+    "default": true,
+    "order": 3
+  },
+  "maxLogLines": {
+    "type": "number",
+    "name": "最大日志行数",
+    "description": "日志界面最多显示的日志行数",
+    "default": 1000,
+    "min": 100,
+    "max": 10000,
+    "order": 4
+  }
+}

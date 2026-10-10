@@ -1,0 +1,19 @@
+{
+  "metadata": {
+    "name": "plugin-loader",
+    "version": "1.0.0",
+    "author": "AstrumShell",
+    "description": "插件加载器 - 负责扫描、加载和管理所有插件",
+    "type": "core"
+  },
+  "config": {
+    "enabled": true,
+    "args": {
+      "scan_dirs": ["store"],
+      "sandbox_enabled": true,
+      "permission_check": true
+    }
+  },
+  "dependencies": [],
+  "permissions": ["*"]
+}

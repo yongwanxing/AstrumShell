@@ -1,0 +1,24 @@
+{
+  "metadata": {
+    "name": "i18n",
+    "version": "1.1.0",
+    "author": "AstrumShell",
+    "description": "国际化多语言支持 - 提供翻译加载/语言切换/HTTP中间件/WebUI集成",
+    "type": "middleware"
+  },
+  "config": {
+    "enabled": true,
+    "args": {
+      "default_locale": "zh-CN",
+      "fallback_locale": "en-US",
+      "locales_dir": "locales",
+      "supported_locales": ["zh-CN", "en-US", "zh-TW", "ja-JP", "ko-KR", "fr-FR", "de-DE", "es-ES"],
+      "auto_detect": true,
+      "cookie_name": "locale",
+      "query_param": "lang",
+      "header_name": "Accept-Language"
+    }
+  },
+  "dependencies": [],
+  "permissions": ["lifecycle", "http-api"]
+}

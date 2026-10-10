@@ -1,0 +1,51 @@
+{
+  "common": {
+    "success": "Success",
+    "error": "Error",
+    "not_found": "Not Found",
+    "forbidden": "Forbidden",
+    "unauthorized": "Unauthorized",
+    "server_error": "Internal Server Error",
+    "bad_request": "Bad Request",
+    "ok": "OK",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "loading": "Loading...",
+    "no_data": "No Data",
+    "confirm": "Confirm",
+    "back": "Back"
+  },
+  "health": {
+    "status": "Running",
+    "service": "Service",
+    "version": "Version",
+    "uptime": "Uptime"
+  },
+  "api": {
+    "welcome": "Welcome to AstrumShell API",
+    "docs": "API Documentation",
+    "rate_limit": "Rate limit exceeded, please try again later",
+    "invalid_request": "Invalid request parameters",
+    "missing_param": "Missing required parameter: {{param}}",
+    "invalid_param": "Invalid parameter format: {{param}}"
+  },
+  "errors": {
+    "400": "Bad Request",
+    "401": "Please login first",
+    "403": "You don't have permission to perform this action",
+    "404": "The requested resource was not found",
+    "500": "Internal server error, please try again later",
+    "502": "Bad Gateway",
+    "503": "Service temporarily unavailable, please try again later"
+  },
+  "plugin": {
+    "i18n_name": "Internationalization",
+    "i18n_desc": "Provides translation loading, language detection, and HTTP middleware",
+    "locale_changed": "Locale changed to {{locale}}",
+    "locale_not_supported": "Unsupported locale: {{locale}}"
+  }
+}

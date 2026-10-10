@@ -1,0 +1,25 @@
+{
+  "metadata": {
+    "name": "http-api",
+    "version": "1.1.0",
+    "author": "AstrumShell",
+    "description": "HTTP API 服务 - 提供 RESTful API/路由功能/多语言支持/安全中间件",
+    "type": "protocol"
+  },
+  "config": {
+    "enabled": true,
+    "args": {
+      "host": "0.0.0.0",
+      "port": 8080,
+      "ssl_enabled": false,
+      "ssl_cert": "",
+      "ssl_key": "",
+      "cors_enabled": true,
+      "rate_limit_enabled": true,
+      "max_body_size": 10485760,
+      "timeout": 30
+    }
+  },
+  "dependencies": ["i18n"],
+  "permissions": ["lifecycle", "circuit-breaker"]
+}

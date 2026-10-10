@@ -1,0 +1,219 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "AstrumShell: 安装依赖",
+      "type": "shell",
+      "command": "pip install -r requirements.txt",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": true
+      },
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "label": "AstrumShell: 启动开发服务器",
+      "type": "shell",
+      "command": "python -m oss.cli serve",
+      "group": "none",
+      "isBackground": true,
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": [
+        {
+          "pattern": [
+            {
+              "regexp": ".",
+              "file": 1,
+              "location": 2,
+              "message": 3
+            }
+          ],
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": ".*启动 AstrumShell 服务.*",
+            "endsPattern": ".*服务已启动.*"
+          }
+        }
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "label": "AstrumShell: 运行测试",
+      "type": "shell",
+      "command": "pytest -v --tb=short",
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": true
+      },
+      "problemMatcher": [
+        {
+          "owner": "python",
+          "fileLocation": ["relative", "${workspaceFolder}"],
+          "pattern": [
+            {
+              "regexp": "^test_(.*)\\.py::(.*) (PASSED|FAILED|ERROR)$",
+              "file": 1,
+              "location": 2,
+              "severity": 3
+            }
+          ]
+        }
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "label": "AstrumShell: 代码检查",
+      "type": "shell",
+      "command": "python -m pylint oss/ store/@{AstrumShell}/ --rcfile=${workspaceFolder}/.pylintrc || echo 'Pylint检查完成'",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": true
+      },
+      "problemMatcher": [
+        {
+          "owner": "python",
+          "fileLocation": ["relative", "${workspaceFolder}"],
+          "pattern": [
+            {
+              "regexp": "^(.*):(\\d+):(\\d+): (\\w+): (.*)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "severity": 4,
+              "message": 5
+            }
+          ]
+        }
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "label": "AstrumShell: 格式化代码",
+      "type": "shell",
+      "command": "python -m black oss/ store/@{AstrumShell}/",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": true
+      },
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "label": "AstrumShell: 清理缓存文件",
+      "type": "shell",
+      "command": "find . -type f -name '*.pyc' -delete && find . -type d -name '__pycache__' -delete && find . -type f -name '.pid' -delete",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": true
+      },
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "label": "AstrumShell: 查看服务状态",
+      "type": "shell",
+      "command": "if [ -f .pid ]; then echo '服务正在运行，PID: ' && cat .pid; else echo '服务未运行'; fi",
+      "group": "none",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "new",
+        "showReuseMessage": true,
+        "clear": true
+      },
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "label": "AstrumShell: 停止服务",
+      "type": "shell",
+      "command": "if [ -f .pid ]; then kill $(cat .pid) && rm -f .pid && echo '服务已停止'; else echo '服务未运行'; fi",
+      "group": "none",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "new",
+        "showReuseMessage": true,
+        "clear": true
+      },
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "label": "AstrumShell: 重启服务",
+      "type": "shell",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "AstrumShell: 停止服务",
+        "AstrumShell: 启动开发服务器"
+      ],
+      "group": "none",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": true
+      },
+      "problemMatcher": [],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    }
+  ]
+}

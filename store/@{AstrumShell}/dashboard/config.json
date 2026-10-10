@@ -1,0 +1,28 @@
+{
+  "refreshInterval": {
+    "type": "number",
+    "name": "刷新间隔",
+    "description": "仪表盘数据自动刷新的间隔时间（秒）",
+    "default": 2,
+    "min": 1,
+    "max": 60,
+    "order": 1
+  },
+  "showDisk": {
+    "type": "boolean",
+    "name": "显示磁盘",
+    "description": "是否在仪表盘显示磁盘使用率",
+    "default": true,
+    "order": 2
+  },
+  "diskThreshold": {
+    "type": "number",
+    "name": "磁盘警告阈值",
+    "description": "磁盘使用率超过此值时显示警告颜色",
+    "default": 80,
+    "min": 50,
+    "max": 95,
+    "show_when": { "field": "showDisk", "value": true },
+    "order": 3
+  }
+}

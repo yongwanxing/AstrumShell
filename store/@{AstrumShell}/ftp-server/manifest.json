@@ -1,0 +1,27 @@
+{
+  "metadata": {
+    "name": "ftp-server",
+    "version": "1.1.0",
+    "author": "AstrumShell",
+    "description": "FTP/SFTP 文件传输服务 - 提供安全的文件上传下载/目录管理/WebUI集成",
+    "type": "service"
+  },
+  "config": {
+    "enabled": true,
+    "args": {
+      "ftp_port": 2121,
+      "sftp_port": 2222,
+      "passive_ports": [30000, 30010],
+      "max_connections": 50,
+      "timeout": 300,
+      "allow_anonymous": false,
+      "root_dir": "/workspace/ftp-root",
+      "chroot_enabled": true,
+      "ssl_enabled": true,
+      "ssl_cert": "config/ftp.crt",
+      "ssl_key": "config/ftp.key"
+    }
+  },
+  "dependencies": ["http-api", "i18n"],
+  "permissions": ["lifecycle", "plugin-storage"]
+}

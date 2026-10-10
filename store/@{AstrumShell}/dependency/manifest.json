@@ -1,0 +1,15 @@
+{
+  "metadata": {
+    "name": "dependency",
+    "version": "1.0.0",
+    "author": "AstrumShell",
+    "description": "依赖解析 - 拓扑排序 + 循环依赖检测",
+    "type": "core"
+  },
+  "config": {
+    "enabled": true,
+    "args": {}
+  },
+  "dependencies": [],
+  "permissions": []
+}

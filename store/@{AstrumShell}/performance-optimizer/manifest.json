@@ -1,0 +1,18 @@
+{
+  "metadata": {
+    "name": "performance-optimizer",
+    "version": "1.0.0",
+    "author": "AstrumShell",
+    "description": "性能优化插件 - 提供缓存、对象池、批量处理、内存预分配等工具"
+  },
+  "config": {
+    "args": {
+      "enabled": true,
+      "cache_maxsize": 2048,
+      "pool_maxsize": 100,
+      "enable_profiler": true
+    }
+  },
+  "dependencies": [],
+  "permissions": []
+}

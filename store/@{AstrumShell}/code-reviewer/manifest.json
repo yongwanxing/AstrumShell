@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "name": "code-reviewer",
+    "version": "1.0.0",
+    "author": "AstrumShell",
+    "description": "代码审查器 - 提供 astrum check 功能，自动扫描代码问题",
+    "type": "tool"
+  },
+  "config": {
+    "enabled": true,
+    "args": {
+      "scan_dirs": ["store", "oss"],
+      "exclude_patterns": ["__pycache__", "*.pyc", "*.pyo"],
+      "max_file_size": 102400,
+      "report_format": "console"
+    }
+  },
+  "dependencies": [],
+  "permissions": ["*"]
+}

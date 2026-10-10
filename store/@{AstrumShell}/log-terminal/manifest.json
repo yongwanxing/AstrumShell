@@ -1,0 +1,15 @@
+{
+  "metadata": {
+    "name": "log-terminal",
+    "version": "1.0.0",
+    "author": "AstrumShell",
+    "description": "日志查看器与 SSH 终端",
+    "type": "webui-extension"
+  },
+  "config": {
+    "enabled": true,
+    "args": {}
+  },
+  "dependencies": ["http-api", "webui"],
+  "permissions": ["*"]
+}

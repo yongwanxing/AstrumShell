@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "name": "pkg-manager",
+    "version": "1.1.0",
+    "author": "AstrumShell",
+    "description": "插件包管理器 - 配置管理/商店/多语言项目部署支持",
+    "type": "webui-extension"
+  },
+  "config": {
+    "enabled": true,
+    "args": {
+      "store_url": "https://store.astrumshell.org",
+      "auto_update": false,
+      "verify_signatures": true,
+      "cache_enabled": true,
+      "max_cache_size": 524288000
+    }
+  },
+  "dependencies": ["http-api", "webui", "plugin-storage", "i18n"],
+  "permissions": ["lifecycle", "plugin-storage"]
+}

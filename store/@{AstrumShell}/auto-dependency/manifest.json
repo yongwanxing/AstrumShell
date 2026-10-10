@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "name": "auto-dependency",
+    "version": "1.0.0",
+    "author": "AstrumShell",
+    "description": "依赖自动安装插件 - 扫描所有插件的声明文件，检查并安装系统依赖",
+    "type": "core"
+  },
+  "config": {
+    "enabled": true,
+    "args": {
+      "scan_dirs": ["store"],
+      "package_manager": "auto",
+      "auto_install": true,
+      "pl_injection": false
+    }
+  },
+  "dependencies": ["plugin-loader"],
+  "permissions": ["*"]
+}

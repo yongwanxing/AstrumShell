@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "name": "dashboard",
+    "version": "1.1.0",
+    "author": "AstrumShell",
+    "description": "WebUI 仪表盘 - 系统监控/插件管理/安全配置/多语言支持",
+    "type": "webui-extension"
+  },
+  "config": {
+    "enabled": true,
+    "args": {
+      "refresh_interval": 5,
+      "show_system_metrics": true,
+      "show_plugin_status": true,
+      "show_security_alerts": true,
+      "theme": "dark"
+    }
+  },
+  "dependencies": ["http-api", "webui", "i18n"],
+  "permissions": ["*"]
+}

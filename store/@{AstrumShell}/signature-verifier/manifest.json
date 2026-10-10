@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "name": "signature-verifier",
+    "version": "1.1.0",
+    "author": "AstrumShell",
+    "description": "插件签名验证服务 - 验证官方插件完整性与来源真实性/安全增强",
+    "type": "core"
+  },
+  "config": {
+    "enabled": true,
+    "args": {
+      "enforce_official": true,
+      "key_dir": "data/signature-verifier/keys",
+      "algorithm": "RSA-SHA256",
+      "key_size": 2048,
+      "auto_verify": true,
+      "cache_enabled": true,
+      "cache_ttl": 3600
+    }
+  },
+  "dependencies": ["plugin-storage", "i18n"],
+  "permissions": ["plugin-storage"]
+}

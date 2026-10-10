@@ -1,0 +1,241 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "AstrumShell: 启动服务",
+      "type": "python",
+      "request": "launch",
+      "module": "oss.cli",
+      "args": ["serve"],
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "PYTHONUNBUFFERED": "1"
+      },
+      "cwd": "${workspaceFolder}",
+      "python": "${command:python.interpreterPath}"
+    },
+    {
+      "name": "AstrumShell: 调试模式启动",
+      "type": "python",
+      "request": "launch",
+      "module": "oss.cli",
+      "args": ["serve", "--debug"],
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "PYTHONUNBUFFERED": "1",
+        "LOG_LEVEL": "DEBUG"
+      },
+      "cwd": "${workspaceFolder}",
+      "python": "${command:python.interpreterPath}"
+    },
+    {
+      "name": "AstrumShell: 运行测试",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "-v",
+        "--tb=short",
+        "--cov=oss",
+        "--cov-report=html",
+        "--cov-report=term"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "cwd": "${workspaceFolder}",
+      "python": "${command:python.interpreterPath}"
+    },
+    {
+      "name": "AstrumShell: 调试插件加载器",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/oss/plugin/loader.py",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "PYTHONUNBUFFERED": "1"
+      },
+      "cwd": "${workspaceFolder}",
+      "python": "${command:python.interpreterPath}"
+    },
+    {
+      "name": "AstrumShell: 调试日志终端插件",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/store/@{AstrumShell}/log-terminal/main.py",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "PYTHONUNBUFFERED": "1"
+      },
+      "cwd": "${workspaceFolder}",
+      "python": "${command:python.interpreterPath}"
+    },
+    {
+      "name": "AstrumShell: 调试WebUI",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/store/@{AstrumShell}/webui/main.py",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "PYTHONUNBUFFERED": "1"
+      },
+      "cwd": "${workspaceFolder}",
+      "python": "${command:python.interpreterPath}"
+    },
+    {
+      "name": "AstrumShell: 调试HTTP API",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/store/@{AstrumShell}/http-api/main.py",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "PYTHONUNBUFFERED": "1"
+      },
+      "cwd": "${workspaceFolder}",
+      "python": "${command:python.interpreterPath}"
+    },
+    {
+      "name": "AstrumShell: 调试WS API",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/store/@{AstrumShell}/ws-api/main.py",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "PYTHONUNBUFFERED": "1"
+      },
+      "cwd": "${workspaceFolder}",
+      "python": "${command:python.interpreterPath}"
+    },
+    {
+      "name": "AstrumShell: 调试特定文件",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "PYTHONUNBUFFERED": "1"
+      },
+      "cwd": "${workspaceFolder}",
+      "python": "${command:python.interpreterPath}"
+    },
+    {
+      "name": "AstrumShell: 附加到进程",
+      "type": "python",
+      "request": "attach",
+      "processId": "${command:pickProcess}",
+      "host": "localhost",
+      "port": 5678,
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}",
+          "remoteRoot": "."
+        }
+      ],
+      "justMyCode": false
+    },
+    {
+      "name": "AstrumShell: 运行CLI命令",
+      "type": "python",
+      "request": "launch",
+      "module": "oss.cli",
+      "args": ["${input:cliCommand}"],
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "PYTHONUNBUFFERED": "1"
+      },
+      "cwd": "${workspaceFolder}",
+      "python": "${command:python.interpreterPath}"
+    },
+    {
+      "name": "AstrumShell 网站: 启动Node.js服务器",
+      "type": "node",
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}/website/src/server.js",
+      "outFiles": [
+        "${workspaceFolder}/website/**/*.js"
+      ],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "env": {
+        "NODE_ENV": "development"
+      },
+      "autoAttachChildProcesses": true,
+      "sourceMaps": true,
+      "showAsyncStacks": true,
+      "smartStep": true,
+      "pauseForSourceMap": true,
+      "cwd": "${workspaceFolder}/website"
+    },
+    {
+      "name": "AstrumShell 网站: 开发模式启动",
+      "type": "node",
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "env": {
+        "NODE_ENV": "development"
+      },
+      "autoAttachChildProcesses": true,
+      "sourceMaps": true,
+      "cwd": "${workspaceFolder}/website"
+    },
+    {
+      "name": "AstrumShell 网站: 附加到Node.js进程",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "restart": true,
+      "localRoot": "${workspaceFolder}/website",
+      "remoteRoot": "${workspaceFolder}/website"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "cliCommand",
+      "type": "promptString",
+      "description": "输入要执行的CLI命令（如：install, uninstall, list等）",
+      "default": "help"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "AstrumShell: 完整调试环境",
+      "configurations": [
+        "AstrumShell: 启动服务",
+        "AstrumShell: 调试日志终端插件"
+      ],
+      "stopAll": true
+    }
+  ]
+}

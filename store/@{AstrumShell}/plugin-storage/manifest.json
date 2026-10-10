@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "name": "plugin-storage",
+    "version": "1.1.0",
+    "author": "AstrumShell",
+    "description": "插件存储 - 为所有插件提供隔离的键值存储服务/多语言支持",
+    "type": "utility"
+  },
+  "config": {
+    "enabled": true,
+    "args": {
+      "data_dir": "./data/storage",
+      "max_size_per_plugin": 104857600,
+      "compression_enabled": true,
+      "encryption_enabled": false,
+      "backup_enabled": true,
+      "backup_interval": 86400
+    }
+  },
+  "dependencies": ["i18n"],
+  "permissions": ["lifecycle"]
+}

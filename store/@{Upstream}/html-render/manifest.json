@@ -1,0 +1,17 @@
+{
+  "metadata": {
+    "name": "html-render",
+    "version": "1.0.0",
+    "author": "Upstream",
+    "description": "HTML 渲染服务 - 提供 8080 端口的 HTML 页面服务",
+    "type": "utility"
+  },
+  "config": {
+    "enabled": true,
+    "args": {
+      "html_dir": "./data/html-render"
+    }
+  },
+  "dependencies": ["http-api", "plugin-storage"],
+  "permissions": ["http-api", "plugin-storage"]
+}

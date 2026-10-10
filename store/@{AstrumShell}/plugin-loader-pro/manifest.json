@@ -1,0 +1,40 @@
+{
+  "metadata": {
+    "name": "plugin-loader-pro",
+    "version": "1.0.0",
+    "author": "AstrumShell",
+    "description": "插件加载 Pro - 为 plugin-loader 提供熔断、降级、容错、自动修复等高级机制",
+    "type": "enhancer"
+  },
+  "config": {
+    "enabled": true,
+    "args": {
+      "circuit_breaker": {
+        "failure_threshold": 3,
+        "recovery_timeout": 60,
+        "half_open_requests": 1
+      },
+      "retry": {
+        "max_retries": 3,
+        "backoff_factor": 2,
+        "initial_delay": 1
+      },
+      "health_check": {
+        "interval": 30,
+        "timeout": 5,
+        "max_failures": 5
+      },
+      "auto_recovery": {
+        "enabled": true,
+        "max_attempts": 3,
+        "delay": 10
+      },
+      "isolation": {
+        "enabled": true,
+        "timeout_per_plugin": 30
+      }
+    }
+  },
+  "dependencies": ["plugin-loader"],
+  "permissions": ["*"]
+}

@@ -1,0 +1,30 @@
+{
+  "name": "@AstrumShell/nodejs-adapter",
+  "version": "1.0.0",
+  "description": "Pure Node.js runtime adapter service. Provides execution context for other plugins to run Node.js/npm commands in their own ./pkg directories.",
+  "author": "AstrumShell Team",
+  "license": "MIT",
+  "type": "adapter",
+  "main": "main.py",
+  "enabled": true,
+  "priority": 10,
+  "runtime": {
+    "language": "python",
+    "entry_point": "main.py",
+    "requirements": []
+  },
+  "capabilities": [
+    "nodejs_execution",
+    "npm_management",
+    "context_switching",
+    "dependency_isolation"
+  ],
+  "services": {
+    "provides": ["nodejs-adapter"],
+    "consumes": []
+  },
+  "config": {
+    "node_path": null,
+    "npm_path": null
+  }
+}

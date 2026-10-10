@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AstrumShell v1.1.0 | 控制台</title>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --text: #1a1a1a;
+            --text-secondary: #666666;
+            --border: #e5e5e5;
+            --accent: #2563eb;
+            --card-bg: #f9fafb;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            margin-bottom: 60px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 60px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            transition: all 0.2s ease;
+        }
+
+        .card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--accent);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            font-size: 24px;
+            color: white;
+        }
+
+        .card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .card p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .status-bar {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+        }
+
+        .status-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .status-value {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        footer {
+            margin-top: 60px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            padding-top: 40px;
+            border-top: 1px solid var(--border);
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 20px; }
+            h1 { font-size: 2rem; }
+            .grid { grid-template-columns: 1fr; }
+            .status-bar { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AstrumShell</h1>
+            <p class="subtitle">v1.2.0 · 插件化运行时</p>
+        </header>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-dot"></div>
+                <span class="status-label">系统状态</span>
+                <span class="status-value">运行中</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">版本</span>
+                <span class="status-value">1.1.0</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">活跃插件</span>
+                <span class="status-value">13</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">运行时间</span>
+                <span class="status-value" id="uptime">0h 0m</span>
+            </div>
+        </div>
+
+        <div class="grid" style="margin-top: 40px;">
+            <div class="card">
+                <div class="card-icon">🛡️</div>
+                <h3>安全隔离</h3>
+                <p>进程级隔离机制，杜绝沙箱逃逸风险，保障核心系统安全。</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">🌐</div>
+                <h3>多语言支持</h3>
+                <p>原生编排 Python, Node.js, Go, Java, PHP 项目部署。</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">🔧</div>
+                <h3>运维工具</h3>
+                <p>集成 FTP, FRP, 防火墙，自动化备份与健康检查。</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">📊</div>
+                <h3>实时监控</h3>
+                <p>可视化资源监控，异常行为检测与自动熔断。</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">🚀</div>
+                <h3>插件市场</h3>
+                <p>一键安装更新官方与社区插件，依赖自动解析。</p>
+            </div>
+            <div class="card">
+                <div class="card-icon">⚙️</div>
+                <h3>配置管理</h3>
+                <p>统一配置文件，支持热加载与版本回滚。</p>
+            </div>
+        </div>
+
+        <footer>
+            <p>AstrumShell v1.1.0 Security All-in-One Edition</p>
+            <p style="margin-top: 8px;">Built with ❤️ · MIT License</p>
+        </footer>
+    </div>
+
+    <script>
+        let seconds = 0;
+        setInterval(() => {
+            seconds++;
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            document.getElementById('uptime').textContent = h + 'h ' + m + 'm';
+        }, 1000);
+    </script>
+</body>
+</html>

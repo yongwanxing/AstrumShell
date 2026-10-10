@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "name": "webui",
+    "version": "2.1.0",
+    "author": "AstrumShell",
+    "description": "Web 控制台 - 多语言支持/插件管理/安全配置/系统监控",
+    "type": "webui"
+  },
+  "config": {
+    "enabled": true,
+    "args": {
+      "port": 8080,
+      "theme": "dark",
+      "title": "AstrumShell",
+      "language": "zh-CN",
+      "supported_languages": ["zh-CN", "en-US", "zh-TW", "ja-JP", "ko-KR", "fr-FR", "de-DE", "es-ES"],
+      "session_timeout": 3600,
+      "enable_2fa": false,
+      "show_plugins": true,
+      "show_security": true,
+      "show_deployments": true
+    }
+  },
+  "dependencies": ["http-api", "i18n"],
+  "permissions": ["*"],
+  "frontend": "php",
+  "database": {
+    "type": "mysql",
+    "name": "astrumshell",
+    "init_script": "config/database.sql"
+  }
+}

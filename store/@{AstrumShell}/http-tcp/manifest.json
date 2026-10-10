@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "name": "http-tcp",
+    "version": "1.1.0",
+    "author": "AstrumShell",
+    "description": "HTTP TCP 服务 - 基于 TCP 的 HTTP 协议实现/多语言支持",
+    "type": "protocol"
+  },
+  "config": {
+    "enabled": true,
+    "args": {
+      "host": "0.0.0.0",
+      "port": 8082,
+      "ssl_enabled": false,
+      "max_connections": 500,
+      "timeout": 30
+    }
+  },
+  "dependencies": ["i18n"],
+  "permissions": ["lifecycle"]
+}

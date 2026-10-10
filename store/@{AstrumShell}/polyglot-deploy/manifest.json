@@ -1,0 +1,26 @@
+{
+  "metadata": {
+    "name": "polyglot-deploy",
+    "version": "1.1.0",
+    "author": "AstrumShell",
+    "description": "多语言项目部署服务 - 支持 Node.js/Python/Java/Go/Rust 等项目的一键部署/WebUI 管理",
+    "type": "deployment"
+  },
+  "config": {
+    "enabled": true,
+    "args": {
+      "supported_languages": ["python", "nodejs", "java", "go", "rust", "php", "ruby"],
+      "build_timeout": 300,
+      "deploy_timeout": 600,
+      "max_projects": 50,
+      "workspace_dir": "/workspace/polyglot-projects",
+      "auto_cleanup": true,
+      "cleanup_interval": 3600,
+      "log_level": "info",
+      "docker_enabled": true,
+      "docker_network": "polyglot-net"
+    }
+  },
+  "dependencies": ["http-api", "i18n", "pkg-manager"],
+  "permissions": ["lifecycle", "plugin-storage"]
+}

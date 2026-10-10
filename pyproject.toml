@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "astrum-shell"
+version = "1.2.0"
+description = "AstrumShell - 一切皆为插件的开发者工具运行时框架"
+requires-python = ">=3.10"
+dependencies = [
+    "click>=8.0",
+    "pyyaml>=6.0",
+    "websockets>=12.0",
+    "psutil>=5.9.0",
+    "cryptography>=41.0",
+]
+
+[project.scripts]
+astrum = "oss.cli:main"
+oss = "oss.cli:main"  # 旧命令名保留兼容
+
+[tool.setuptools.packages.find]
+include = ["oss*"]

@@ -1,0 +1,22 @@
+# 统一换行符：文本文件入库为 LF（Linux/macOS 友好），检出时按需转换
+* text=auto eol=lf
+
+# Windows 批处理保留 CRLF，避免 cmd 解析异常
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Shell 脚本必须 LF，否则 Linux/macOS 下会报 bad interpreter
+*.sh text eol=lf
+
+# 二进制文件不做换行转换
+*.7z binary
+*.zip binary
+*.gz binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pyc binary

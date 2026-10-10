@@ -1,0 +1,15 @@
+{
+  "metadata": {
+    "name": "json-codec",
+    "version": "1.0.0",
+    "author": "AstrumShell",
+    "description": "JSON 编解码器 - 插件间 JSON 数据处理和验证",
+    "type": "utility"
+  },
+  "config": {
+    "enabled": true,
+    "args": {}
+  },
+  "dependencies": [],
+  "permissions": []
+}

@@ -1,0 +1,51 @@
+{
+  "common": {
+    "success": "成功",
+    "error": "错误",
+    "not_found": "未找到",
+    "forbidden": "禁止访问",
+    "unauthorized": "未授权",
+    "server_error": "服务器内部错误",
+    "bad_request": "请求格式错误",
+    "ok": "确定",
+    "cancel": "取消",
+    "save": "保存",
+    "delete": "删除",
+    "edit": "编辑",
+    "create": "创建",
+    "search": "搜索",
+    "loading": "加载中...",
+    "no_data": "暂无数据",
+    "confirm": "确认",
+    "back": "返回"
+  },
+  "health": {
+    "status": "运行正常",
+    "service": "服务",
+    "version": "版本",
+    "uptime": "运行时间"
+  },
+  "api": {
+    "welcome": "欢迎使用 AstrumShell API",
+    "docs": "API 文档",
+    "rate_limit": "请求频率过高，请稍后重试",
+    "invalid_request": "无效的请求参数",
+    "missing_param": "缺少必需参数: {{param}}",
+    "invalid_param": "参数格式错误: {{param}}"
+  },
+  "errors": {
+    "400": "请求格式错误",
+    "401": "请先登录",
+    "403": "您没有权限执行此操作",
+    "404": "请求的资源不存在",
+    "500": "服务器内部错误，请稍后重试",
+    "502": "网关错误",
+    "503": "服务暂时不可用，请稍后重试"
+  },
+  "plugin": {
+    "i18n_name": "国际化多语言支持",
+    "i18n_desc": "提供翻译加载、语言检测和 HTTP 中间件功能",
+    "locale_changed": "语言已切换为 {{locale}}",
+    "locale_not_supported": "不支持的语言: {{locale}}"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "name": "web-toolkit",
+    "version": "1.0.0",
+    "author": "Upstream",
+    "description": "Web 工具包 - 提供静态文件服务、模板渲染、路由等 Web 开发工具",
+    "type": "utility"
+  },
+  "config": {
+    "enabled": true,
+    "args": {
+      "host": "0.0.0.0",
+      "port": 8080,
+      "static_dir": "./static",
+      "template_dir": "./templates",
+      "index_files": ["index.html", "index.htm"]
+    }
+  },
+  "dependencies": ["http-api", "http-tcp", "plugin-storage"],
+  "permissions": ["http-api", "http-tcp", "json-codec", "plugin-storage"]
+}

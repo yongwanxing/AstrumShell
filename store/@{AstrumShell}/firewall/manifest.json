@@ -1,0 +1,27 @@
+{
+  "metadata": {
+    "name": "firewall",
+    "version": "1.1.0",
+    "author": "AstrumShell",
+    "description": "防火墙服务 - 提供 IP 过滤/端口管理/访问控制/WebUI 规则配置",
+    "type": "security"
+  },
+  "config": {
+    "enabled": true,
+    "args": {
+      "default_policy": "ACCEPT",
+      "whitelist_enabled": false,
+      "blacklist_enabled": true,
+      "rate_limit_enabled": true,
+      "rate_limit_requests": 100,
+      "rate_limit_window": 60,
+      "blocked_ips_file": "config/blocked_ips.txt",
+      "allowed_ips_file": "config/allowed_ips.txt",
+      "rules_file": "config/firewall_rules.json",
+      "log_blocked": true,
+      "notify_on_block": false
+    }
+  },
+  "dependencies": ["http-api", "i18n"],
+  "permissions": ["lifecycle", "plugin-storage"]
+}

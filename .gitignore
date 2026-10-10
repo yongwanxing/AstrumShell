@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+.venv/
+venv/
+.env
+.env.*
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.tox/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Logs & runtime state
+logs/
+*.log
+*.pid
+data/
+
+# Archives / large binaries
+*.7z
+*.zip
+*.tar.gz
+
+# OS / Editors
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.tmp
+.idea/

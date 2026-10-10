@@ -1,0 +1,18 @@
+{
+  "metadata": {
+    "name": "hot-reload",
+    "version": "1.0.0",
+    "author": "AstrumShell",
+    "description": "热插拔 - 运行时加载/卸载/更新插件",
+    "type": "utility"
+  },
+  "config": {
+    "enabled": true,
+    "args": {
+      "watch_dirs": ["store"],
+      "watch_extensions": [".py", ".json"]
+    }
+  },
+  "dependencies": [],
+  "permissions": ["plugin-loader"]
+}

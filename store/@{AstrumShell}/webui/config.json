@@ -1,0 +1,29 @@
+{
+  "title": {
+    "type": "string",
+    "name": "网站标题",
+    "description": "侧边栏和页面标题显示的文字",
+    "default": "AstrumShell",
+    "order": 1
+  },
+  "port": {
+    "type": "number",
+    "name": "端口号",
+    "description": "WebUI 监听端口",
+    "default": 8080,
+    "min": 1024,
+    "max": 65535,
+    "order": 2
+  },
+  "theme": {
+    "type": "select",
+    "name": "主题",
+    "description": "界面主题风格",
+    "default": "dark",
+    "options": [
+      { "label": "深色", "value": "dark" },
+      { "label": "浅色", "value": "light" }
+    ],
+    "order": 3
+  }
+}

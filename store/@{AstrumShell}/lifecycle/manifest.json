@@ -1,0 +1,15 @@
+{
+  "metadata": {
+    "name": "lifecycle",
+    "version": "1.0.0",
+    "author": "AstrumShell",
+    "description": "生命周期管理 - 管理插件的状态转换和钩子",
+    "type": "core"
+  },
+  "config": {
+    "enabled": true,
+    "args": {}
+  },
+  "dependencies": [],
+  "permissions": []
+}
