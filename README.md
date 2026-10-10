@@ -10,21 +10,6 @@
 
 ---
 
-## 30 秒上手
-
-| 方式 | 命令 | 访问 |
-|---|---|---|
-| **Windows** | 双击 `start.bat` | http://localhost:8080 |
-| **Linux / macOS** | `bash start.sh` | http://localhost:8080 |
-| **Docker** | `docker compose up -d` | http://localhost:8080 |
-| **手动** | `pip install -r requirements.txt && python main.py serve` | http://localhost:8080 |
-
-首次启动会自动创建虚拟环境、安装依赖、初始化 `data/` 目录；`start.bat` / `start.sh` 还会做 Python 探测、依赖安装与崩溃自动重启。
-
-安装为命令后（`pip install -e .`）可用：`astrum serve` / `astrum info` / `astrum version`。
-
----
-
 ## 它是什么
 
 `oss/` 是内核，只做四件事：**插件发现、加载与依赖注入、生命周期管理、日志**。
@@ -38,6 +23,89 @@ HTTP API、Web 控制台、国际化、键值存储、签名校验、系统监�
 - **签名与完整性校验** —— 插件可带 RSA-4096 `SIGNATURE`，`signature-verifier` 在加载时校验来源与完整性
 - **热插拔与启停** —— `hot-reload` 支持运行时加载/卸载；目录加 `.disabled` 后缀即禁用（控制台可一键切换）
 - **国际化** —— 内置 `zh-CN` / `en-US` / `zh-TW`
+
+---
+
+## 下载与部署
+
+### 方式一：Git 克隆（推荐）
+
+```bash
+git clone https://github.com/yongwanxing/AstrumShell.git
+cd AstrumShell
+```
+
+克隆后直接按 [30 秒上手](#30-秒上手) 启动即可，无需编译、无需构建。
+
+### 方式二：直接下载源码包（不用 Git）
+
+| 格式 | 地址 |
+|---|---|
+| ZIP | `https://github.com/yongwanxing/AstrumShell/archive/refs/heads/main.zip` |
+| tar.gz | `https://github.com/yongwanxing/AstrumShell/archive/refs/heads/main.tar.gz` |
+
+下载后解压 → 进入目录 → 按「30 秒上手」运行。（网络访问 GitHub 不畅时，请自行准备代理或使用镜像）
+
+### 方式三：Docker
+
+```bash
+# A. compose（推荐：自带只读插件挂载 + 健康检查）
+docker compose up -d
+docker compose logs -f        # 查看启动日志
+docker compose down           # 停止
+
+# B. 手动构建与运行
+docker build -t astrumshell .
+docker run -d --name astrumshell \
+  -p 8080:8080 -p 8081:8081 -p 8082:8082 \
+  -v astrumshell-data:/app/data \
+  astrumshell
+```
+
+- 端口：`8080` HTTP API + Web 控制台 · `8081` WebSocket · `8082` HTTP over TCP
+- `store/` 以**只读**方式挂载 → 更新插件无需重建镜像
+- `data/`（插件存储 / 密钥 / 日志）落在命名卷 `astrumshell-data`
+- 镜像内置健康检查（打 `/health`），`restart: unless-stopped` 自动拉起
+
+### 方式四：pip 安装（作为依赖库或本地开发）
+
+```bash
+pip install -r requirements.txt
+pip install -e .        # 安装后可用 astrum 命令
+```
+
+### 环境要求
+
+| 项 | 要求 |
+|---|---|
+| Python | **≥ 3.10**（CI 覆盖 3.10 / 3.12 / 3.13，本地实测 3.14） |
+| 操作系统 | Windows 10+ / Linux / macOS（CI 三平台全绿） |
+| 可选依赖 | Node.js（`nodejs-adapter` 插件需要）、Docker（容器部署） |
+| 端口 | 默认需要 `8080` / `8081` / `8082` 可用 |
+
+### 部署后自检
+
+```bash
+curl http://localhost:8080/health        # 期望 HTTP 200
+curl http://localhost:8080/api/status    # 期望 {"status": "running", "plugins_loaded": true}
+```
+
+浏览器打开 <http://localhost:8080> → 自动跳转到 `/dashboard` 仪表盘；`/packages` 是插件管理页。
+
+---
+
+## 快速上手  
+
+| 方式 | 命令 | 访问 |
+|---|---|---|
+| **Windows** | 双击 `start.bat` | http://localhost:8080 |
+| **Linux / macOS** | `bash start.sh` | http://localhost:8080 |
+| **Docker** | `docker compose up -d` | http://localhost:8080 |
+| **手动** | `pip install -r requirements.txt && python main.py serve` | http://localhost:8080 |
+
+首次启动会自动创建虚拟环境、安装依赖、初始化 `data/` 目录；`start.bat` / `start.sh` 还会做 Python 探测、依赖安装与崩溃自动重启。
+
+安装为命令后（`pip install -e .`）可用：`astrum serve` / `astrum info` / `astrum version`。
 
 ---
 
@@ -151,13 +219,7 @@ WebSocket 端口由 `ws-api` 插件的 `config.args.port` 决定（默认 **8081
 
 ### Docker
 
-```bash
-docker compose up -d
-```
-
-- 端口：`8080`（API + WebUI）、`8081`（WebSocket）、`8082`（TCP）
-- `store/` 以只读方式挂载 → 更新插件无需重建镜像
-- `data/` 使用命名卷持久化；内置 healthcheck
+部署步骤见上方 [下载与部署](#下载与部署) 的**方式三**：容器内端口为 `8080` / `8081` / `8082`，`store/` 只读挂载、`data/` 走命名卷持久化、内置 `/health` 健康检查。
 
 ---
 

@@ -15,12 +15,12 @@ services:
       - ./store/@{Upstream}:/app/store/@{Upstream}:ro
       # 数据持久化
       - astrumshell-data:/app/data
-      # 配置可覆盖
-      - ./config.yaml:/app/config.yaml:ro
+      # 配置可覆盖（实际配置文件是 oss.config.json）
+      - ./oss.config.json:/app/oss.config.json:ro
     environment:
       - TZ=Asia/Shanghai
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3).status == 200 else 1)"]
       interval: 10s
       timeout: 3s
       retries: 3
