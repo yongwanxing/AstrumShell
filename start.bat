@@ -304,4 +304,4 @@ exit /b 0
 echo [INFO] Cleaning up...
 call :remove_pid
 echo [SUCCESS] Cleanup completed
-exit /b 0
+exit /b 0 
