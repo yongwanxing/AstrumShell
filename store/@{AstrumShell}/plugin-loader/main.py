@@ -394,11 +394,98 @@ class PluginManager:
         self._signature_verifier = None
         self.capability_registry = CapabilityRegistry(permission_check=permission_check)
         self.permission_check = permission_check
-        self.enforce_signature = True
+        # 是否强制签名校验：默认开启，可用 oss.config.json / 环境变量 ENFORCE_SIGNATURE 关闭
+        try:
+            from oss.config import get_config
+            self.enforce_signature = bool(get_config().get("ENFORCE_SIGNATURE", True))
+        except Exception:
+            self.enforce_signature = True
+        self._signature_ok: list[str] = []
+        self._signature_failed: list[tuple[str, str]] = []
         self.pl_injector = PLInjector(self)
+
+        # 登记到运行时定位器：依赖成环的插件（如 i18n ←→ http-api）可据此取实例
+        try:
+            from oss.plugin.runtime import set_manager
+            set_manager(self)
+        except Exception:
+            pass
 
     def set_signature_verifier(self, verifier): self._signature_verifier = verifier
     def set_lifecycle(self, lifecycle_plugin): self.lifecycle_plugin = lifecycle_plugin
+
+    @staticmethod
+    def _author_of(plugin_dir: Path) -> str:
+        """由 store/@{作者}/插件名 反推作者名（用于重建签名数据）；非 @{...} 目录则用目录名"""
+        parent = plugin_dir.parent.name
+        if parent.startswith("@{") and parent.endswith("}"):
+            return parent[2:-1]
+        return parent
+
+    def _make_signature_verifier(self, plugin_instance):
+        """为加载器自己构造验签器
+
+        signature-verifier 插件的 ``self.verifier`` 要等它的 ``init()`` 才创建，而签名
+        校验必须发生在「导入插件代码之前」，因此这里直接用插件模块里的
+        ``SignatureVerifier`` 类构造一个实例给加载器使用。
+        """
+        try:
+            from oss.config import get_config
+            key_dir = str(get_config().get("SIGNATURE_KEYS_DIR", "./data/signature-verifier/keys"))
+            module = (self.plugins.get("signature-verifier") or {}).get("module")
+            verifier_cls = getattr(module, "SignatureVerifier", None)
+            if verifier_cls is not None:
+                return verifier_cls(key_dir=key_dir)
+        except Exception as exc:
+            Log.warn("plugin-loader", f"构造验签器失败：{type(exc).__name__}: {exc}")
+        return getattr(plugin_instance, "verifier", None)
+
+    def _check_signature(self, plugin_dir: Path, plugin_name: str) -> tuple[bool, str]:
+        """加载插件前的签名校验，返回 (是否允许加载, 原因)
+
+        自举阶段没有验签服务（加载器自身、signature-verifier 自身）时放行；
+        强制模式（enforce_signature=True）下验签失败的插件会被拒绝加载。
+        """
+        verifier = self._signature_verifier
+        if verifier is None:
+            # 兜底：插件 init() 之后 self.verifier 才可用
+            entry = self.plugins.get("signature-verifier") or {}
+            verifier = getattr(entry.get("instance"), "verifier", None)
+            if verifier is not None:
+                self._signature_verifier = verifier
+
+        if verifier is None:
+            return True, "无验签服务（自举阶段，跳过签名校验）"
+
+        author = self._author_of(plugin_dir)
+        try:
+            valid, msg = verifier.verify_plugin(plugin_dir, author)
+        except Exception as exc:
+            valid, msg = False, f"验签异常 {type(exc).__name__}: {exc}"
+
+        if valid:
+            self._signature_ok.append(plugin_name)
+            return True, msg
+
+        self._signature_failed.append((plugin_name, msg))
+        if self.enforce_signature:
+            Log.error("plugin-loader", f"插件 '{plugin_name}' 签名校验未通过，已拒绝加载：{msg}")
+            return False, msg
+        Log.warn("plugin-loader", f"插件 '{plugin_name}' 签名校验未通过（ENFORCE_SIGNATURE=false，仍加载）：{msg}")
+        return True, msg
+
+    def log_signature_summary(self):
+        """启动时输出一次签名校验汇总（避免逐个插件刷屏）"""
+        if not self._signature_ok and not self._signature_failed:
+            return
+        if self._signature_failed:
+            Log.warn("plugin-loader",
+                     f"签名校验：通过 {len(self._signature_ok)} 个，未通过 {len(self._signature_failed)} 个"
+                     f"（强制模式：{'开' if self.enforce_signature else '关'}）")
+            for name, msg in self._signature_failed:
+                Log.warn("plugin-loader", f"  - {name}: {msg}")
+        else:
+            Log.ok("plugin-loader", f"签名校验：{len(self._signature_ok)} 个插件全部通过")
 
     def _load_manifest(self, plugin_dir: Path) -> dict:
         mf = plugin_dir / "manifest.json"
@@ -522,6 +609,11 @@ class PluginManager:
         capabilities = scan_capabilities(plugin_dir)
         plugin_name = plugin_dir.name.rstrip("}")
 
+        # 签名校验：必须在导入/执行插件代码之前完成，未通过则拒绝加载
+        allowed, _reason = self._check_signature(plugin_dir, plugin_name)
+        if not allowed:
+            return None
+
         # PL 注入检查
         pl_injection = manifest.get("config", {}).get("args", {}).get("pl_injection", False)
         if pl_injection:
@@ -580,6 +672,22 @@ class PluginManager:
             Log.warn("plugin-loader", "未检测到任何插件，自动引导安装...")
             self._bootstrap_installation()
 
+        # 先加载 signature-verifier 并立即构造验签器：
+        # 插件的 init() 要等后面才调用，而签名校验必须发生在「导入插件代码之前」，
+        # 所以这里直接用插件模块里的 SignatureVerifier 类建一个给加载器自己用。
+        sig_dir = Path(store_dir) / "@{AstrumShell}" / "signature-verifier"
+        if sig_dir.exists() and (sig_dir / "main.py").exists():
+            try:
+                inst = self.load(sig_dir)
+                if inst:
+                    verifier = self._make_signature_verifier(inst)
+                    self.set_signature_verifier(verifier)
+                    if verifier is not None:
+                        Log.ok("plugin-loader", "签名验证服务已加载")
+                    else:
+                        Log.warn("plugin-loader", "签名验证服务未就绪，本次加载将跳过签名校验")
+            except Exception as e: Log.warn("plugin-loader", f"signature-verifier 加载失败: {e}")
+
         lifecycle_plugin = None
         lc_dir = Path(store_dir) / "@{AstrumShell}" / "lifecycle"
         if lc_dir.exists() and (lc_dir / "main.py").exists():
@@ -596,16 +704,10 @@ class PluginManager:
                 if inst: dep_plugin = inst; self._dependency_plugin = inst; self.plugins.pop("dependency", None)
             except Exception as e: Log.warn("plugin-loader", f"dependency 插件加载失败：{type(e).__name__}: {e}")
 
-        sig_dir = Path(store_dir) / "@{AstrumShell}" / "signature-verifier"
-        if sig_dir.exists() and (sig_dir / "main.py").exists():
-            try:
-                inst = self.load(sig_dir)
-                if inst: self.set_signature_verifier(inst.verifier); Log.ok("plugin-loader", "签名验证服务已加载")
-            except Exception as e: Log.warn("plugin-loader", f"signature-verifier 加载失败: {e}")
-
         if lifecycle_plugin: self.set_lifecycle(lifecycle_plugin)
         self._load_plugins_from_dir(Path(store_dir))
         if dep_plugin: self._sort_by_dependencies(dep_plugin)
+        self.log_signature_summary()
 
     def _load_plugins_from_dir(self, store_dir: Path):
         if not store_dir.exists(): return
@@ -688,6 +790,7 @@ class PluginManager:
         nm = {}
         for n in self.plugins:
             c = n.rstrip("}"); nm[c] = n; nm[c + "}"] = n
+        injected, skipped, failed = 0, [], []
         for n, i in self.plugins.items():
             inst = i["instance"]; io = i.get("info")
             if not io or not io.dependencies: continue
@@ -696,9 +799,24 @@ class PluginManager:
                 if ad and ad in self.plugins:
                     sn = f"set_{dn.replace('-', '_')}"
                     if hasattr(inst, sn):
-                        try: getattr(inst, sn)(self.plugins[ad]["instance"]); Log.ok("plugin-loader", f"注入成功: {n} <- {ad}")
-                        except Exception as e: Log.error("plugin-loader", f"注入依赖失败 {n}.{sn}: {e}")
-                    else: Log.warn("plugin-loader", f"{n} 没有 {sn} 方法")
+                        try:
+                            getattr(inst, sn)(self.plugins[ad]["instance"])
+                            injected += 1
+                            Log.ok("plugin-loader", f"注入成功: {n} <- {ad}")
+                        except Exception as e:
+                            failed.append(f"{n}.{sn}")
+                            Log.error("plugin-loader", f"注入依赖失败 {n}.{sn}: {e}")
+                    else:
+                        # 插件声明依赖但未实现 set_xxx：这类依赖只用于加载顺序，属正常情况，
+                        # 不再逐个告警（会刷屏），统一在下面汇总一行。
+                        skipped.append(f"{n}<-{ad}")
+        if skipped:
+            Log.tip("plugin-loader",
+                    f"跳过 {len(skipped)} 个未实现 setter 的依赖注入（仅用于加载顺序，属正常）")
+        if failed:
+            Log.warn("plugin-loader", f"{len(failed)} 个依赖注入失败：{', '.join(failed)}")
+        if injected:
+            Log.tip("plugin-loader", f"成功注入 {injected} 个依赖")
 
     def stop_all(self):
         for n, i in reversed(list(self.plugins.items())):

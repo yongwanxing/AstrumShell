@@ -9,7 +9,10 @@ class Router(BaseRouter):
 
     def handle(self, request: Request) -> Response:
         """处理请求"""
-        result = self.find_route(request.method, request.path)
+        # 匹配时忽略查询串：/api/x?y=1 应命中 /api/x
+        # （request.path 保留原值，处理器仍可自行解析查询参数）
+        path = request.path.split("?", 1)[0]
+        result = self.find_route(request.method, path)
         if result:
             route, params = result
             # 将路径参数注入到请求中

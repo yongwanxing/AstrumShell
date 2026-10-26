@@ -1,4 +1,5 @@
 """WebUI 服务器 - 容器模式"""
+import re
 import subprocess
 import os
 import tempfile
@@ -9,21 +10,45 @@ from pathlib import Path
 class WebUIServer:
     """WebUI 服务器"""
 
-    def __init__(self, router, config: dict):
+    def __init__(self, router, config: dict, settings_getter=None, translator=None):
         self.router = router
         self.config = config
         self.frontend_dir = Path(__file__).parent.parent / "frontend"
-        
+
         # 页面注册表
         self.pages = {}  # path -> content_provider
         self.nav_items = []  # 导航项列表
 
+        # 主题/语言来自调用方（webui 插件持有设置与 i18n 连接）
+        self._settings_getter = settings_getter      # () -> dict
+        self._translator = translator                # (key, fallback) -> str
+
+        # 允许访问的静态文件名（防目录穿越）
+        self._static_name = re.compile(r"^[A-Za-z0-9_.-]+$")
+
     def start(self):
         """注册默认路由"""
-        # 静态资源
-        self.router.get("/static/css/main.css", self._handle_css)
-        self.router.get("/static/js/main.js", self._handle_js)
+        # 静态资源（支持任意 css/js 文件名，方便插件各自加脚本）
+        self.router.get("/static/css/:file", self._handle_css)
+        self.router.get("/static/js/:file", self._handle_js)
         self.router.get("/health", self._handle_health)
+
+    def _t(self, key: str, fallback: str) -> str:
+        """翻译（未接入 i18n 时用 fallback）"""
+        if self._translator is None:
+            return fallback
+        try:
+            return self._translator(key, fallback)
+        except Exception:
+            return fallback
+
+    def _settings(self) -> dict:
+        if self._settings_getter is None:
+            return {}
+        try:
+            return self._settings_getter() or {}
+        except Exception:
+            return {}
 
     def register_page(self, path: str, content_provider, nav_item: dict = None):
         """供其他插件注册页面"""
@@ -39,7 +64,7 @@ class WebUIServer:
         """渲染页面布局 + 内容"""
         provider = self.pages.get(path)
         content = provider() if provider else ""
-        
+
         # 排序导航项（首页在前）
         sorted_nav = sorted(self.nav_items, key=lambda x: 0 if x.get('url') == '/' else 1)
 
@@ -69,16 +94,21 @@ class WebUIServer:
             '''
 
         page_title = self.config.get("title", "AstrumShell")
-        
+        settings = self._settings()
+
         # 读取 HTML 模板
         template_file = self.frontend_dir / "views" / "layout.html"
         with open(template_file, 'r', encoding='utf-8') as f:
             html_template = f.read()
-        
+
         html = html_template.replace('{{ pageTitle }}', page_title)
         html = html.replace('{{ navItems }}', nav_html)
         html = html.replace('{{ content }}', content)
-        
+        html = html.replace('{{ theme }}', str(settings.get("theme", "dark")))
+        html = html.replace('{{ lang }}', str(settings.get("language", "zh-CN")))
+        html = html.replace('{{ settingsTitle }}', self._t("webui.title", "设置"))
+        html = html.replace('{{ settingsActive }}', ' active' if path == '/settings' else '')
+
         return Response(
             status=200,
             headers={"Content-Type": "text/html; charset=utf-8"},
@@ -165,16 +195,24 @@ class WebUIServer:
         return "[" + ", ".join(items) + "]"
 
     def _handle_css(self, request):
-        css_file = self.frontend_dir / "assets" / "css" / "main.css"
-        with open(css_file, 'r', encoding='utf-8') as f:
-            css = f.read()
-        return Response(status=200, headers={"Content-Type": "text/css; charset=utf-8"}, body=css)
+        return self._serve_static(request, "css", "text/css; charset=utf-8")
 
     def _handle_js(self, request):
-        js_file = self.frontend_dir / "assets" / "js" / "main.js"
-        with open(js_file, 'r', encoding='utf-8') as f:
-            js = f.read()
-        return Response(status=200, headers={"Content-Type": "application/javascript; charset=utf-8"}, body=js)
+        return self._serve_static(request, "js", "application/javascript; charset=utf-8")
+
+    def _serve_static(self, request, kind: str, content_type: str):
+        """提供 /static/<kind>/<file>（文件名白名单，杜绝目录穿越）"""
+        name = (getattr(request, "path_params", {}) or {}).get("file", "")
+        if not self._static_name.match(name) or name.startswith("."):
+            return Response(status=404, headers={"Content-Type": "text/plain; charset=utf-8"},
+                            body="Not Found")
+        file_path = self.frontend_dir / "assets" / kind / name
+        if not file_path.is_file():
+            return Response(status=404, headers={"Content-Type": "text/plain; charset=utf-8"},
+                            body="Not Found")
+        with open(file_path, "r", encoding="utf-8") as f:
+            body = f.read()
+        return Response(status=200, headers={"Content-Type": content_type}, body=body)
 
     def _handle_health(self, request):
         import json

@@ -72,19 +72,30 @@ class I18nPlugin(Plugin):
 
     def start(self):
         """启动插件
-        
-        注册 API 路由（如果有 http-api 依赖）
+
+        注册 API 路由。i18n 的 manifest 没有声明 http-api 依赖（会与
+        http-api → i18n 形成依赖环），因此优先用注入实例，取不到时通过
+        运行时定位器按名字取。
         """
-        # 如果有 http-api 依赖，注册 i18n 相关路由
-        http_api = None
-        if hasattr(self, 'set_http_api'):
-            http_api = getattr(self, '_http_api', None)
-        
-        if http_api and hasattr(http_api, 'router'):
+        if getattr(self, "_routes_registered", False):
+            return
+
+        http_api = getattr(self, "_http_api", None)
+        if http_api is None:
+            try:
+                from oss.plugin.runtime import get_plugin
+                http_api = get_plugin("http-api")
+            except Exception:
+                http_api = None
+
+        if http_api is not None and hasattr(http_api, 'router'):
             http_api.router.get("/api/i18n/locales", self._locales_handler)
             http_api.router.get("/api/i18n/translate", self._translate_handler)
             http_api.router.post("/api/i18n/locale", self._change_locale_handler)
+            self._routes_registered = True
             Log.info("i18n", "API 路由已注册")
+        else:
+            Log.warn("i18n", "未找到 http-api，i18n HTTP 接口不可用")
 
     def stop(self):
         """停止插件"""
@@ -149,16 +160,27 @@ class I18nPlugin(Plugin):
         
         key = params.get("key", "")
         locale = params.get("locale", None)
-        
+
         if not key:
             return Response(
                 status=400,
                 body=json.dumps({"error": t("api.missing_param", param="key")}),
                 headers={"Content-Type": "application/json"}
             )
-        
+
+        # key/locale 已经单独取用，不能再作为插值参数传进去（否则 t() 会收到重复关键字参数）
+        params.pop("key", None)
+        params.pop("locale", None)
+
         # 翻译
-        result = t(key, locale=locale, **params)
+        try:
+            result = t(key, locale=locale, **params)
+        except Exception as exc:
+            return Response(
+                status=400,
+                body=json.dumps({"error": f"{type(exc).__name__}: {exc}", "key": key}),
+                headers={"Content-Type": "application/json"}
+            )
         
         return Response(
             status=200,

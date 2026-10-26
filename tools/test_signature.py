@@ -14,6 +14,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "store/@{AstrumShell}/signature-verifier"))
 
+from oss.console import setup_console  # noqa: E402
+
+# Windows 下输出被重定向时用本地编码会崩（本脚本会打印 ✅/❌），先统一控制台策略
+setup_console()
+
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.backends import default_backend

@@ -3,22 +3,30 @@ import os
 import time
 import json
 import socket
+import threading
 import subprocess
 import platform
 import psutil
 from collections import deque
 from oss.logger.logger import Log
 from oss.plugin.types import Plugin, Response, register_plugin_type
+from oss.plugin.translate import tr
 
 
 class DashboardPlugin(Plugin):
     """仪表盘插件 - 依赖 WebUI 容器"""
 
+    #: 采样间隔（秒）与保留的采样点数量
+    SAMPLE_INTERVAL = 2.0
+    HISTORY_LEN = 90
+    #: 每 N 次采样测一次网络延迟（连接超时开销较大）
+    LATENCY_EVERY = 5
+
     def __init__(self):
         self.webui = None
         self.views_dir = os.path.join(os.path.dirname(__file__), 'views')
         self._start_time = time.time()  # 记录插件启动时间（即项目启动时间）
-        self._history_len = 60
+        self._history_len = self.HISTORY_LEN
         self._cpu_history = deque(maxlen=self._history_len)
         self._ram_history = deque(maxlen=self._history_len)
         self._net_recv_history = deque(maxlen=self._history_len)
@@ -28,6 +36,16 @@ class DashboardPlugin(Plugin):
         self._net_latency_history = deque(maxlen=self._history_len)
         self._last_net = None
         self._last_disk = None
+        self._last_latency = 0.0
+
+        # 后台采样：保证前端每次拉取都有连续趋势，且 stats 接口不用再阻塞
+        self._lock = threading.Lock()
+        self._sampler = None
+        self._sampler_stop = threading.Event()
+        self._sample_interval = self.SAMPLE_INTERVAL
+        self._sample_count = 0
+        self._last_stats = {}
+        psutil.cpu_percent(interval=None)   # 预热：首次调用总是 0
 
     def meta(self):
         from oss.plugin.types import Metadata, PluginConfig, Manifest
@@ -51,14 +69,37 @@ class DashboardPlugin(Plugin):
             self.webui.register_page(
                 path='/dashboard',
                 content_provider=self._render_content,
-                nav_item={'icon': 'ri-dashboard-line', 'text': '仪表盘'}
+                nav_item={'icon': 'ri-dashboard-line', 'text': tr("dashboard.title", "系统仪表盘")}
             )
             if hasattr(self.webui, 'server') and self.webui.server:
                 self.webui.server.router.get("/api/dashboard/stats", self._handle_stats_api)
                 self.webui.server.router.get("/api/dashboard/history", self._handle_history_api)
+                # 仪表盘自己的静态资源（与 WebUI 容器同源，无需额外端口）
+                self.webui.server.router.get("/static/css/dashboard.css", self._handle_css)
+                self.webui.server.router.get("/static/js/dashboard.js", self._handle_js)
             Log.info("dashboard", "已注册到 WebUI 导航")
         else:
             Log.warn("dashboard", "警告: 未找到 WebUI 依赖")
+
+    def _static_path(self, kind: str, name: str) -> str:
+        path = os.path.join(os.path.dirname(__file__), 'assets', kind, name)
+        with open(path, 'r', encoding='utf-8') as f:
+            return f.read()
+
+    def _handle_css(self, request):
+        try:
+            body = self._static_path('css', 'dashboard.css')
+        except Exception as exc:
+            return Response(status=404, headers={"Content-Type": "text/plain; charset=utf-8"}, body=str(exc))
+        return Response(status=200, headers={"Content-Type": "text/css; charset=utf-8"}, body=body)
+
+    def _handle_js(self, request):
+        try:
+            body = self._static_path('js', 'dashboard.js')
+        except Exception as exc:
+            return Response(status=404, headers={"Content-Type": "text/plain; charset=utf-8"}, body=str(exc))
+        return Response(status=200, headers={"Content-Type": "application/javascript; charset=utf-8"}, body=body)
+
 
     def _get_uptime_str(self):
         """计算项目运行时间（从插件启动时算起）"""
@@ -113,18 +154,21 @@ class DashboardPlugin(Plugin):
             return {'read_rate': 0, 'write_rate': 0}
 
     def _get_network_latency(self) -> float:
-        """测量到公共 DNS 8.8.8.8 的 TCP 连接延迟（真实网络波动）"""
+        """测量到公共 DNS 8.8.8.8 的 TCP 连接延迟（毫秒）
+
+        连接有超时开销，因此由采样循环控制调用频率（每 LATENCY_EVERY 次测一次），
+        其余时刻复用上一次结果；无外网时记 0，不刷 traceback。
+        """
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(2)
+            s.settimeout(1.0)
             start = time.time()
             s.connect(('8.8.8.8', 53))
-            elapsed = (time.time() - start) * 1000  # 毫秒
+            self._last_latency = round((time.time() - start) * 1000, 1)
             s.close()
-            return round(elapsed, 1)
-        except Exception as e:
-            import traceback; print(f"[main.py] 错误:{type(e).__name__}:{e}"); traceback.print_exc()
-            return 0.0
+        except Exception:
+            self._last_latency = 0.0
+        return self._last_latency
 
     def _get_network_interfaces(self):
         try:
@@ -156,16 +200,19 @@ class DashboardPlugin(Plugin):
         except (OSError, AttributeError):
             return {'load1': 0, 'load5': 0, 'load15': 0}
 
-    def _handle_stats_api(self, request):
-        try:
-            cpu_percent = psutil.cpu_percent(interval=0.3)
-            mem = psutil.virtual_memory()
-            disk = psutil.disk_usage('/')
-            net = self._get_network_stats()
-            disk_io = self._get_disk_io_stats()
-            load = self._get_load_info()
-            latency = self._get_network_latency()
+    # ========== 采样与 API ==========
 
+    def _collect_stats(self, measure_latency: bool = True) -> dict:
+        """采集一次系统指标：写入历史并更新缓存快照"""
+        cpu_percent = psutil.cpu_percent(interval=None)     # 非阻塞：与上次调用的间隔有关
+        mem = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        net = self._get_network_stats()
+        disk_io = self._get_disk_io_stats()
+        load = self._get_load_info()
+        latency = self._get_network_latency() if measure_latency else self._last_latency
+
+        with self._lock:
             self._cpu_history.append(round(cpu_percent, 1))
             self._ram_history.append(round(mem.percent, 1))
             self._net_recv_history.append(net['recv_rate'])
@@ -173,155 +220,241 @@ class DashboardPlugin(Plugin):
             self._disk_read_history.append(disk_io['read_rate'])
             self._disk_write_history.append(disk_io['write_rate'])
             self._net_latency_history.append(latency)
+            self._sample_count += 1
 
-            uptime_str = self._get_uptime_str()
+        data = {
+            'cpu': {'percent': round(cpu_percent, 1), 'cores': psutil.cpu_count(logical=True)},
+            'ram': {'percent': round(mem.percent, 1), 'used': round(mem.used / (1024**3), 1),
+                    'total': round(mem.total / (1024**3), 1)},
+            'disk': {'percent': round(disk.percent, 1), 'used': round(disk.used / (1024**3), 1),
+                     'total': round(disk.total / (1024**3), 1)},
+            'network': net,
+            'disk_io': disk_io,
+            'load': load,
+            'latency': latency,
+            'processes': len(psutil.pids()),
+            'uptime': self._get_uptime_str(),
+            'sampled_at': time.time(),
+            'host': {
+                'os': f"{platform.system()} {platform.release()}",
+                'python': platform.python_version(),
+                'hostname': platform.node(),
+            },
+        }
+        with self._lock:
+            self._last_stats = data
+        return data
 
-            data = {
-                'cpu': {'percent': round(cpu_percent, 1), 'cores': psutil.cpu_count(logical=True)},
-                'ram': {'percent': round(mem.percent, 1), 'used': round(mem.used / (1024**3), 1), 'total': round(mem.total / (1024**3), 1)},
-                'disk': {'percent': round(disk.percent, 1), 'used': round(disk.used / (1024**3), 1), 'total': round(disk.total / (1024**3), 1)},
-                'network': net,
-                'disk_io': disk_io,
-                'load': load,
-                'latency': latency,
-                'processes': len(psutil.pids()),
-                'uptime': uptime_str
-            }
+    def _start_sampler(self):
+        """启动后台采样线程（前端不打开时也在积累趋势数据）"""
+        if self._sampler is not None and self._sampler.is_alive():
+            return
+        self._sampler_stop.clear()
+        self._sampler = threading.Thread(target=self._sample_loop, name="dashboard-sampler", daemon=True)
+        self._sampler.start()
+        Log.info("dashboard", f"后台采样已启动（每 {self._sample_interval:.0f} 秒一次）")
+
+    def _sample_loop(self):
+        tick = 0
+        while not self._sampler_stop.is_set():
+            try:
+                self._collect_stats(measure_latency=(tick % self.LATENCY_EVERY == 0))
+            except Exception as exc:
+                Log.warn("dashboard", f"采样失败：{type(exc).__name__}: {exc}")
+            tick += 1
+            self._sampler_stop.wait(self._sample_interval)
+
+    def _stop_sampler(self):
+        self._sampler_stop.set()
+        sampler, self._sampler = self._sampler, None
+        if sampler is not None:
+            sampler.join(timeout=3)
+
+    def _handle_stats_api(self, request):
+        """当前指标：直接返回采样线程的缓存（毫秒级，不再阻塞 0.3 秒）"""
+        try:
+            with self._lock:
+                data = dict(self._last_stats)
+            if not data:
+                data = self._collect_stats(measure_latency=False)
+            data['interval'] = self._sample_interval
+            with self._lock:
+                data['samples'] = self._sample_count
+                data['history_len'] = self._history_len
             return Response(status=200, headers={"Content-Type": "application/json"}, body=json.dumps(data))
         except Exception as e:
             return Response(status=500, headers={"Content-Type": "application/json"}, body=json.dumps({'error': str(e)}))
 
     def _handle_history_api(self, request):
+        """历史趋势：CPU / 内存 / 网络 / 磁盘 IO / 延迟"""
         try:
-            data = {
-                'cpu': list(self._cpu_history),
-                'ram': list(self._ram_history),
-                'net_recv': list(self._net_recv_history),
-                'net_sent': list(self._net_sent_history),
-                'disk_read': list(self._disk_read_history),
-                'disk_write': list(self._disk_write_history),
-                'latency': list(self._net_latency_history)
-            }
+            with self._lock:
+                data = {
+                    'cpu': list(self._cpu_history),
+                    'ram': list(self._ram_history),
+                    'net_recv': list(self._net_recv_history),
+                    'net_sent': list(self._net_sent_history),
+                    'disk_read': list(self._disk_read_history),
+                    'disk_write': list(self._disk_write_history),
+                    'latency': list(self._net_latency_history),
+                    'samples': self._sample_count,
+                    'interval': self._sample_interval,
+                    'max_len': self._history_len,
+                }
             return Response(status=200, headers={"Content-Type": "application/json"}, body=json.dumps(data))
         except Exception as e:
             return Response(status=500, headers={"Content-Type": "application/json"}, body=json.dumps({'error': str(e)}))
 
     def start(self):
+        self._start_sampler()
         Log.info("dashboard", "仪表盘已启动")
 
     def stop(self):
-        Log.error("dashboard", "仪表盘已停止")
+        self._stop_sampler()
+        Log.info("dashboard", "仪表盘已停止")
+
+    def _default_interval(self):
+        """默认刷新间隔（秒，0 表示不自动刷新）：优先读 WebUI 设置"""
+        try:
+            settings = self.webui.get_settings() if self.webui is not None else {}
+            if settings.get("dashboard_auto_refresh") is False:
+                return 0
+            value = float(settings.get("dashboard_refresh_interval", 2))
+            return min(max(value, 1.0), 60.0)
+        except Exception:
+            return 2.0
 
     def _render_content(self) -> str:
-        """渲染仪表盘页面 - 纯 HTML/Python 模板"""
-        try:
-            import psutil
-            import platform
-            
-            cpu_percent = psutil.cpu_percent(interval=0.5)
-            cpu_cores = psutil.cpu_count(logical=True)
-            mem = psutil.virtual_memory()
-            ram_percent = round(mem.percent, 1)
-            ram_used_gb = round(mem.used / (1024**3), 1)
-            ram_total_gb = round(mem.total / (1024**3), 1)
-            disk = psutil.disk_usage('/')
-            disk_percent = round(disk.percent, 1)
-            disk_used_gb = round(disk.used / (1024**3), 1)
-            disk_total_gb = round(disk.total / (1024**3), 1)
-            
-            circumference = 2 * 3.14159 * 52
-            cpu_dash_offset = round(circumference - (cpu_percent / 100) * circumference, 1)
-            ram_dash_offset = round(circumference - (ram_percent / 100) * circumference, 1)
-            disk_dash_offset = round(circumference - (disk_percent / 100) * circumference, 1)
-            
-            uptime_str = self._get_uptime_str()
-            
-            disk_color = 'gauge-green' if disk_percent < 50 else ('gauge-orange' if disk_percent < 80 else 'gauge-blue')
-            
-            html = f"""<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>系统仪表盘</title>
-    <link rel="stylesheet" href="/assets/remixicon.css">
-    <style>
-        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f6fa; padding: 20px; }}
-        .container {{ max-width: 1400px; margin: 0 auto; }}
-        .card {{ background: white; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px; }}
-        .card-title {{ font-size: 18px; font-weight: 600; color: #2c3e50; margin-bottom: 20px; }}
-        .stats-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }}
-        .stat-card {{ background: #f8f9fa; border-radius: 8px; padding: 20px; text-align: center; }}
-        .stat-icon {{ width: 60px; height: 60px; margin: 0 auto 15px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; color: white; }}
-        .stat-icon.cpu {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }}
-        .stat-icon.ram {{ background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }}
-        .stat-icon.disk {{ background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }}
-        .stat-value {{ font-size: 24px; font-weight: 700; color: #2c3e50; margin-bottom: 5px; }}
-        .stat-label {{ font-size: 14px; color: #7f8c8d; }}
-        .gauge-container {{ position: relative; width: 120px; height: 120px; margin: 0 auto; }}
-        .gauge-svg {{ transform: rotate(-90deg); }}
-        .gauge-bg {{ fill: none; stroke: #e5e7eb; stroke-width: 8; }}
-        .gauge-fill {{ fill: none; stroke: #3498db; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 0.5s; }}
-        .gauge-green .gauge-fill {{ stroke: #27ae60; }}
-        .gauge-orange .gauge-fill {{ stroke: #f39c12; }}
-        .gauge-blue .gauge-fill {{ stroke: #e74c3c; }}
-        .gauge-text {{ position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 18px; font-weight: 600; color: #2c3e50; }}
-        .info-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px; }}
-        .info-item {{ background: #f8f9fa; padding: 15px; border-radius: 6px; }}
-        .info-label {{ font-size: 12px; color: #7f8c8d; margin-bottom: 5px; }}
-        .info-value {{ font-size: 14px; color: #2c3e50; font-weight: 600; }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="card">
-            <h2 class="card-title"><i class="ri-dashboard-line"></i> 系统仪表盘</h2>
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon cpu"><i class="ri-cpu-line"></i></div>
-                    <div class="stat-value">{cpu_percent}%</div>
-                    <div class="stat-label">CPU 使用率 ({cpu_cores} 核心)</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon ram"><i class="ri-memory-line"></i></div>
-                    <div class="stat-value">{ram_percent}%</div>
-                    <div class="stat-label">内存使用 ({ram_used_gb} GB / {ram_total_gb} GB)</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon disk"><i class="ri-hard-drive-line"></i></div>
-                    <div class="stat-value">{disk_percent}%</div>
-                    <div class="stat-label">磁盘使用 ({disk_used_gb} GB / {disk_total_gb} GB)</div>
-                </div>
-            </div>
-            <div class="info-grid">
-                <div class="info-item">
-                    <div class="info-label">系统运行时间</div>
-                    <div class="info-value">{uptime_str}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">操作系统</div>
-                    <div class="info-value">{platform.system()} {platform.release()}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Python 版本</div>
-                    <div class="info-value">{platform.python_version()}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">主机名</div>
-                    <div class="info-value">{platform.node()}</div>
-                </div>
-            </div>
-        </div>
+        """渲染仪表盘**片段**（注入 WebUI 布局）
+
+        页面只负责骨架，所有数字/图表由 /api/dashboard/stats 与 /history 实时拉取，
+        不再整页 reload。
+        """
+        labels = {
+            "title": tr("dashboard.title", "系统仪表盘"),
+            "cpu": tr("dashboard.cpu", "CPU 使用率"),
+            "ram": tr("dashboard.ram", "内存使用"),
+            "disk": tr("dashboard.disk", "磁盘使用"),
+            "network": tr("dashboard.network", "网络吞吐"),
+            "recv": tr("dashboard.recv", "下载"),
+            "sent": tr("dashboard.sent", "上传"),
+            "disk_io": tr("dashboard.disk_io", "磁盘 IO"),
+            "read": tr("dashboard.read", "读取"),
+            "write": tr("dashboard.write", "写入"),
+            "latency": tr("dashboard.latency", "网络延迟"),
+            "processes": tr("dashboard.processes", "进程数"),
+            "uptime": tr("dashboard.uptime", "运行时间"),
+            "os": tr("dashboard.os", "操作系统"),
+            "python": tr("dashboard.python", "Python 版本"),
+            "hostname": tr("dashboard.hostname", "主机名"),
+            "load": "Load",
+            "pause": tr("dashboard.pause", "暂停刷新"),
+            "resume": tr("dashboard.resume", "继续刷新"),
+            "refresh_now": tr("dashboard.refresh_now", "立即刷新"),
+            "last_update": tr("dashboard.last_update", "最后更新"),
+            "never": tr("dashboard.never", "等待首次采样"),
+            "auto": tr("dashboard.auto", "自动刷新"),
+            "paused": tr("dashboard.paused", "已暂停"),
+            "error": tr("dashboard.error", "数据获取失败"),
+            "trend": tr("dashboard.trend", "最近 {{count}} 个采样点"),
+            "live": tr("dashboard.live", "实时"),
+            "offline": tr("dashboard.offline", "离线"),
+            "seconds": tr("webui.seconds", "秒"),
+            "cores": tr("dashboard.cores", "{{count}} 核心"),
+        }
+        interval = self._default_interval()
+        payload = json.dumps(
+            {"labels": labels, "interval": interval},
+            ensure_ascii=False,
+        ).replace("</", "<\\/")
+
+        def gauge(key: str) -> str:
+            return f"""
+                <div class="gauge-card">
+                    <div class="gauge-container">
+                        <svg class="gauge-svg" width="120" height="120" viewBox="0 0 120 120">
+                            <circle class="gauge-bg" cx="60" cy="60" r="52"></circle>
+                            <circle class="gauge-fill" id="gauge-{key}" cx="60" cy="60" r="52"
+                                    stroke-dasharray="326.7" stroke-dashoffset="326.7"></circle>
+                        </svg>
+                        <div class="gauge-text" id="gauge-{key}-text">--%</div>
+                    </div>
+                    <div class="gauge-label">{labels[key]}</div>
+                    <div class="gauge-extra" id="gauge-{key}-extra"></div>
+                </div>"""
+
+        def chart(key: str, label_key: str) -> str:
+            return f"""
+                <div class="chart">
+                    <div class="chart-head">
+                        <span class="chart-label">{labels[label_key]}</span>
+                        <span class="chart-val" id="chart-{key}-val">—</span>
+                    </div>
+                    <canvas id="chart-{key}" height="64"></canvas>
+                </div>"""
+
+        info_rows = "".join(
+            f'<div class="field"><span class="field-key">{label}</span>'
+            f'<span class="field-val" id="info-{key}">—</span></div>'
+            for key, label in (
+                ("uptime", labels["uptime"]),
+                ("os", labels["os"]),
+                ("python", labels["python"]),
+                ("hostname", labels["hostname"]),
+                ("processes", labels["processes"]),
+                ("load", labels["load"]),
+            )
+        )
+
+        return f"""
+<link rel="stylesheet" href="/static/css/dashboard.css">
+<div class="page dashboard-page">
+    <header class="page-head">
+        <h1><i class="ri-dashboard-line"></i> {labels['title']}</h1>
+        <p class="page-sub">
+            <span id="dash-state" class="dash-state">…</span>
+            <span class="dash-sep">·</span>
+            <span id="dash-last">{labels['last_update']}: {labels['never']}</span>
+        </p>
+    </header>
+
+    <section class="dash-gauges">{gauge('cpu')}{gauge('ram')}{gauge('disk')}</section>
+
+    <div class="actions">
+        <button type="button" id="dash-toggle" class="btn">{labels['pause']}</button>
+        <button type="button" id="dash-refresh" class="btn btn-primary">{labels['refresh_now']}</button>
+        <label class="dash-interval">{labels['auto']}
+            <select id="dash-interval" class="input">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="30">30</option>
+            </select>
+            <span class="hint">{labels['seconds']}</span>
+        </label>
     </div>
-    <script>
-        setTimeout(() => location.reload(), 30000);
-    </script>
-</body>
-</html>"""
-            return html
-        except Exception as e:
-            return f"<p>仪表盘渲染出错：{{e}}</p>"
+
+    <section class="panel">
+        <h2>{labels['trend']} <span class="hint" id="dash-window"></span></h2>
+        <div class="charts">
+            {chart('cpu', 'cpu')}
+            {chart('ram', 'ram')}
+            {chart('net', 'network')}
+            {chart('diskio', 'disk_io')}
+            {chart('latency', 'latency')}
+        </div>
+    </section>
+
+    <section class="panel">
+        <h2>{labels['title']}</h2>
+        <div class="kv">{info_rows}</div>
+    </section>
+</div>
+<script id="dashboard-data" type="application/json">{payload}</script>
+<script src="/static/js/dashboard.js" defer></script>
+"""
+
 
 register_plugin_type("DashboardPlugin", DashboardPlugin)
 

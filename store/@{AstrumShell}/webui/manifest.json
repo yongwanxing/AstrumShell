@@ -21,7 +21,7 @@
       "show_deployments": true
     }
   },
-  "dependencies": ["http-api", "i18n"],
+  "dependencies": ["http-api", "i18n", "plugin-storage"],
   "permissions": ["*"],
   "frontend": "php",
   "database": {

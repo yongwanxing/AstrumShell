@@ -1,12 +1,20 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="{{ lang }}" data-theme="{{ theme }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ pageTitle }}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.1.0/remixicon.min.css">
     <link rel="stylesheet" href="/static/css/main.css">
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js" defer></script>
+    <script>
+        // 首屏前应用本地缓存的主题，避免与 localStorage 不一致时闪烁
+        (function () {
+            try {
+                var cached = localStorage.getItem('webui.theme');
+                if (cached) document.documentElement.setAttribute('data-theme', cached);
+            } catch (e) { /* 忽略 */ }
+        })();
+    </script>
 </head>
 <body>
     <div class="app">
@@ -15,9 +23,9 @@
                 {{ navItems }}
             </nav>
             <div class="sidebar-footer">
-                <button class="settings-btn" title="设置">
+                <a href="/settings" class="settings-btn{{ settingsActive }}" title="{{ settingsTitle }}">
                     <i class="ri-settings-3-line"></i>
-                </button>
+                </a>
             </div>
         </aside>
 

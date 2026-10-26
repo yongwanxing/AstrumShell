@@ -6,13 +6,20 @@
 import sys
 import json
 import base64
-import hashlib
 import time
 from pathlib import Path
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.backends import default_backend
+
+# 允许 `python tools/sign_core_plugins.py` 直接运行（未安装 oss 时也能导入）
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from oss.plugin.content_hash import plugin_tree_hash  # noqa: E402（必须在 sys.path 之后）
+from oss.console import setup_console  # noqa: E402
+
+setup_console()
 
 # ========== 配置 ==========
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -22,19 +29,8 @@ PLUGINS = ["dependency", "signature-verifier"]
 
 
 def compute_plugin_hash(plugin_dir: Path) -> str:
-    """计算插件目录的内容哈希"""
-    hasher = hashlib.sha256()
-    files_to_hash = []
-    for file_path in sorted(plugin_dir.rglob("*")):
-        if file_path.is_file() and file_path.name != "SIGNATURE":
-            rel_path = file_path.relative_to(plugin_dir)
-            files_to_hash.append((str(rel_path), file_path))
-
-    for rel_path, file_path in files_to_hash:
-        hasher.update(rel_path.encode("utf-8"))
-        hasher.update(file_path.read_bytes())
-
-    return hasher.hexdigest()
+    """计算插件目录的内容哈希（跨平台一致，统一委托给 oss.plugin.content_hash）"""
+    return plugin_tree_hash(plugin_dir)
 
 
 def sign_plugin(plugin_dir: Path):
@@ -74,7 +70,8 @@ def sign_plugin(plugin_dir: Path):
     }
 
     signature_file = plugin_dir / "SIGNATURE"
-    signature_file.write_text(json.dumps(sig_data, indent=2))
+    # 固定 LF + UTF-8：保证 Windows/Linux 生成的签名文件字节一致（详见 sign_plugins.py 注释）
+    signature_file.write_text(json.dumps(sig_data, indent=2), encoding="utf-8", newline="\n")
     print(f"✓ 已签名: {plugin_dir.name}")
 
 

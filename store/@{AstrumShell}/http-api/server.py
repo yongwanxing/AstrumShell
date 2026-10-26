@@ -1,7 +1,9 @@
 """HTTP 服务器核心"""
+import json
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Any
+from urllib.parse import unquote_plus
 from oss.config import get_config
 
 
@@ -12,6 +14,21 @@ class Request:
         self.path = path
         self.headers = headers
         self.body = body
+        self.query = self._parse_query(path)
+        self.path_params = {}
+
+    @staticmethod
+    def _parse_query(path: str) -> dict:
+        """解析 ``?a=1&b=2``（处理器可直接用 request.query.get("key")）"""
+        if not path or "?" not in path:
+            return {}
+        params = {}
+        for part in path.split("?", 1)[1].split("&"):
+            if not part:
+                continue
+            key, _, value = part.partition("=")
+            params[unquote_plus(key)] = unquote_plus(value)
+        return params
 
 
 class Response:
@@ -93,7 +110,20 @@ class HttpServer:
                     return
 
                 # 路由匹配
-                resp = router.handle(req)
+                try:
+                    resp = router.handle(req)
+                except Exception as exc:
+                    # 单个处理器出错不应断开连接，统一转成 500 JSON
+                    import traceback
+                    traceback.print_exc()
+                    resp = Response(
+                        status=500,
+                        headers={"Content-Type": "application/json; charset=utf-8"},
+                        body=json.dumps({
+                            "error": f"{type(exc).__name__}: {exc}",
+                            "path": req.path,
+                        }, ensure_ascii=False),
+                    )
                 self._send_response(resp)
 
             def _send_response(self, resp: Response):

@@ -7,7 +7,6 @@
 
 import os
 import json
-import hashlib
 import base64
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
@@ -18,40 +17,41 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.exceptions import InvalidSignature
 
 from oss.plugin.types import Plugin
+from oss.plugin.content_hash import plugin_tree_hash
 from oss.config import get_config
 
 
 # ========== 内置信任锚（Upstream 公钥） ==========
 # 这是 Upstream 的官方公钥，用于验证所有官方签名的插件
 UPSTREAM_PUBLIC_KEY_PEM = """-----BEGIN PUBLIC KEY-----
-MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAqN42I+etzCMHAt4XMLNm
-PMy9CgPuqSNgdwLIsrvYzIZ2nNUr351fLdC19PV1ou5G/rbQzX5TsxGDzJideQWh
-Cdi8G5AwvsoFNzfhLcTxc38YsQGTizj/iIBOkBWiIoLgBDAqyZxKfgAIJQWwhiuz
-vUbXqf6O12YZBzkV/XroszpM1AweZqE+TkmIPs9AbH7Pvi8kHme/avQwPmsQlKyE
-Lf+4CykIN0EnZLLaDGuwwT/V1FIPgOGGWdqVbOyyGB2wMuBwRUrPYJoBYrRISjjz
-KjLsSWfdQ7Id5snovjFnqwZ2qyijhgZVirKLmbEtn9rVAhEO2sPaSbrGzpwllxYp
-pZpSW6yXzO8Ty7XqwIzQg6dw7m8WnIv8pCGKrASSuRwdCDZLh7Wf5gs3kgGTEDmn
-e8imMXNbG1liVQSc5KyNlYdMd99oUCyPza014km/ci5Uw7lT7kgaE2N8BlEBq0vV
-/JzQBW5/rYvbR4CZXmoMCpynjJ5S7PoU8cLmgemFxVJ1RRZMLEj2aDyK11WA1qsV
-IJ02ZY5N7hSJG0mY5YdHeP8CVDKABEFAMMD/i6Jz53z7JPH/Aavw/8HNZFeDliXM
-aMGfNRV1niQLUHnYliDjNCBOxLWfB9pomha3qWfdt0R0obdFeJ+z2SgcTGSk7+zo
-Bgidq6CPfGimd7Wf9TP9J50CAwEAAQ==
+MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEApSx8pgGqWyGCddDJiuLY
+0O3fHw2XSqjURK6sv05TmDY+3ejSMMBB+H54mcfPKvUBIGGwqGhs8iMzuGB473BG
+2IoTWR8UnphnpuA1NA4Wz1dgLHeHHVZpn9uMMrIisWxe5Rql0fVzTD5pr/8cNQNf
+D53ImYOKk+dlIsV83A4FkIERdqn9+4PcvoljNYjiVSd4vuzYZrBXxUqR4ve+yiNm
+EHf+YApFvdO/2OwQoRGLkfroaKIezJRlmAlbs/MS3GjMUm3vV5QF7A//2MBbRyLt
+9IizDySqfRZBLbz+kM/M20mcIfvXcLDkdToeEeYVvtV7HVgleeqGbmfXXKubb110
+8vRzKqkCvCS35KhdVXpc/1BBLsSvuEjufdp1Oyf2AkmCx/Qf6Xtaa+AunRHGFcYk
+gT2IxiYZi9fsl+SwTckR1QtmYAWynZCu7KESC24zaiS5x3CLcdoM3dMNEkJXo/r7
++QlkM9i7kbEBVMOQ1f0r+P9JqZZIGDZuGBnvUHzmYyraeWREvTbTEZdkFmAYTFVj
+fC2LuUTxvBbgtW8FNhNK9dnNZwUl5FK7SCPg8XPEZHNduW3vQzhOEcJrTeWADFaP
+mXrxvBCggEFpTuW8yMgY37j5EYLqebtH8hYklsPbNRlRbOJhhyc5D/fNbgX3Sa2w
+7XKCF4268G3nweHQFO4BTyECAwEAAQ==
 -----END PUBLIC KEY-----"""
 
 # AstrumShell 官方公钥
 ASTRUMSHELL_PUBLIC_KEY_PEM = """-----BEGIN PUBLIC KEY-----
-MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAoeXGPyd4z0wREb7+G85K
-Vabf+7PkmJRbICurqF0ZqBj+0hGMeOI9D8C+6J0AAja4xywq96Btbr/6POVfkhdf
-HGCwI1HO6dR+6es2gCYnvWI9XMGNV0GMXcc7nWz+upukNC0knx/KyjtM+vwYz6jC
-qXFD86msCdrDfK4VqPLOPm7K4oA7DIsjTO1ka+pE1wS8gSY7+Tv24hEe/jvZGFvC
-u/QIMOL4MoRE9j8xxgT3teR9pEwK3+VUvQPdFQkoI+6LAH8Dh749EEY2IGrb1F88
-5D5lWwTdtzEcrmiOb8KyvXtg1S8Gu01in3HLIkMmwCyCQM2p3/cz9qtmx/Yv6ETO
-vey6G3xZAqqA4mF9RMiymqY3l4CFPVkX1gpOtrfSPPWUDJCVx2iAQcHBl/oq8pz5
-jSjN6Njy+yF8Yq7deIBxU+ZWE3Lm+2ioImsozJxAELCMjpgc5vfxySHSPy5ite2r
-Bbt6b0lKyjbPRHRvcXGtc76E92jVzuEOoNVf2/LCThggE/sfxU53/SRekXH05+PE
-1k3wTMEpeVh0m8B8fp052+eW6DXVo0+uPkZPgCA7aA7yHIyqhtBAH4pSwXPFXgzS
-OHMoaLwKiNfFLV2tW8JG18oUIwO3sMyeyLazjHPP831WJ55dfJFsK+d7CfcD3OxM
-LhUSJrBP4sr2J0DyGi0GyjsCAwEAAQ==
+MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA23qHKv5K3+UZReGsdFPu
+Ccip833j6r0SBIYAmPAl/FmCZXSxw8yezjx4p2ZPhGQ5Huaxf9LbZsr4jT97vizY
+AnpBWHMJY6IZZxkKwlIdMdnal4r1FdSQk1M2Os9+X+qV4fjlVUqwS8SS9QZTQTbB
+rzJiTbZj2ObiexO3ZWLTiV39D6wuQoV1nQZL6W3qzrL4RCB8GwNoQUAs1MPvN2C4
+IT+MqYbDbKM0MPzakqO1Rd9fin4DN7g2gggH57N/eHe5qDQv+AQ2Zg/GG3/eBkMl
+O2tSv8hQmhdMMaLKPEtyBdqvFnL9CQLvciBgIxbTjfDYD2c54tKDsbgIS3xaJpLf
+c+7oFfxRAu7pwwTzjoK1P2L5P3gPSo/QGnVsLnJ8XFP9RmHZyF0DBjy2OjeETDFL
+VUKotRQrWW/RXBq3r+DsYqEQHtBg7B6XIb69LWPZ4TdsB8b+mpjateWznqsVCadI
+WbnIQgj8iRP5ifEfvwVTAGLf3PdvHNTI4tGX/CXaywkL1nXQjVHzQbp3fB36cCtx
+HA+LQnWetj1PlBXWK/DYfq+8cW79tlFeT911vUs6LJ62iHgpqFXEhbFWqjc/I/C0
+qbSqKaS1p+p5RjB9qHCTrCZTAyVYJ2VgXwiLNai293RIIzi7CVFe/BO7ZT88vo7x
+H+0pZej1iwWJmt8nqbBM44MCAwEAAQ==
 -----END PUBLIC KEY-----"""
 
 
@@ -91,23 +91,11 @@ class SignatureVerifier:
     def _compute_plugin_hash(self, plugin_dir: Path) -> str:
         """
         计算插件目录的内容哈希
-        包含所有文件的路径相对路径 + 内容
+
+        统一调用 oss.plugin.content_hash.plugin_tree_hash：文本文件按 LF 归一化、
+        相对路径按 ``/`` 分隔，保证 Windows / Linux / macOS 结果一致。
         """
-        hasher = hashlib.sha256()
-        
-        # 收集所有需要哈希的文件
-        files_to_hash = []
-        for file_path in sorted(plugin_dir.rglob("*")):
-            if file_path.is_file() and file_path.name != "SIGNATURE":
-                rel_path = file_path.relative_to(plugin_dir)
-                files_to_hash.append((str(rel_path), file_path))
-        
-        # 按相对路径排序后依次哈希
-        for rel_path, file_path in files_to_hash:
-            hasher.update(rel_path.encode("utf-8"))
-            hasher.update(file_path.read_bytes())
-        
-        return hasher.hexdigest()
+        return plugin_tree_hash(plugin_dir)
 
     def verify_plugin(self, plugin_dir: Path, author: str = "Upstream") -> Tuple[bool, str]:
         """
@@ -119,9 +107,9 @@ class SignatureVerifier:
         if not signature_file.exists():
             return False, f"插件缺少签名文件: {plugin_dir}"
         
-        # 加载签名
+        # 加载签名（显式 UTF-8：避免 Windows 默认用 GBK 读取导致解析失败）
         try:
-            sig_data = json.loads(signature_file.read_text())
+            sig_data = json.loads(signature_file.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             return False, f"签名文件格式错误: {e}"
         
@@ -207,19 +195,8 @@ class SignatureSigner:
         if not self.private_key:
             raise ValueError("未加载私钥")
         
-        # 计算插件哈希
-        hasher = hashlib.sha256()
-        files_to_hash = []
-        for file_path in sorted(plugin_dir.rglob("*")):
-            if file_path.is_file() and file_path.name not in ("SIGNATURE",):
-                rel_path = file_path.relative_to(plugin_dir)
-                files_to_hash.append((str(rel_path), file_path))
-        
-        for rel_path, file_path in files_to_hash:
-            hasher.update(rel_path.encode("utf-8"))
-            hasher.update(file_path.read_bytes())
-        
-        plugin_hash = hasher.hexdigest()
+        # 计算插件哈希（与验签端使用同一实现，保证跨平台一致）
+        plugin_hash = plugin_tree_hash(plugin_dir)
         
         # 签名
         import time
@@ -244,7 +221,9 @@ class SignatureSigner:
         }
         
         signature_file = plugin_dir / "SIGNATURE"
-        signature_file.write_text(json.dumps(sig_data, indent=2))
+        # 固定用 LF 换行 + UTF-8 写入：避免 Windows 下写出 CRLF / GBK 导致
+        # 同一签名在不同平台产生字节差异（git 每次都会显示该文件被修改）
+        signature_file.write_text(json.dumps(sig_data, indent=2), encoding="utf-8", newline="\n")
         
         return str(signature_file)
 

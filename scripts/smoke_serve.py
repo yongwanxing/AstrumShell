@@ -20,6 +20,32 @@ import time
 import urllib.request
 
 
+def _check_surface(base: str) -> None:
+    """逐个访问关键页面/接口，任一异常都让冒烟测试失败
+
+    覆盖 WebUI 设置页、仪表盘实时接口与新增静态资源，保证它们在
+    Windows / Linux / macOS 上都能正常返回。
+    """
+    surface = [
+        ("/settings", "设置页", "set-theme"),
+        ("/dashboard", "仪表盘片段", "dashboard.js"),
+        ("/api/settings", "设置 API", '"settings"'),
+        ("/api/i18n/locales", "语言列表", '"supported"'),
+        ("/api/dashboard/stats", "实时指标", '"cpu"'),
+        ("/api/dashboard/history", "趋势数据", '"cpu"'),
+        ("/static/js/settings.js", "设置页脚本", "settings-data"),
+        ("/static/js/dashboard.js", "仪表盘脚本", "dashboard-data"),
+        ("/static/css/dashboard.css", "仪表盘样式", "gauge-fill"),
+    ]
+    for path, name, marker in surface:
+        with urllib.request.urlopen(base + path, timeout=8) as resp:
+            body = resp.read().decode("utf-8", "replace")
+        assert resp.status == 200, f"{name} {path} 返回 {resp.status}"
+        if marker:
+            assert marker in body, f"{name} {path} 缺少标记 {marker}"
+    print("[smoke] 关键页面/接口检查通过：%d 项" % len(surface))
+
+
 def main() -> int:
     # 控制台/管道可能是 GBK：打印子进程日志时降级替换，避免 UnicodeEncodeError 把测试打断
     for _stream in (sys.stdout, sys.stderr):
@@ -65,6 +91,7 @@ def main() -> int:
                 assert status.get("status") == "running", status
                 assert status.get("plugins_loaded") is True, status
                 assert len(plugins) > 0, "没有任何插件被加载"
+                _check_surface(base)
                 ok = True
                 break
             except Exception:

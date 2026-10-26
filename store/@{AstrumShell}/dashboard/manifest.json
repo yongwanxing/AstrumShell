@@ -9,7 +9,7 @@
   "config": {
     "enabled": true,
     "args": {
-      "refresh_interval": 5,
+      "refresh_interval": 2,
       "show_system_metrics": true,
       "show_plugin_status": true,
       "show_security_alerts": true,

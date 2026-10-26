@@ -6,14 +6,9 @@ import sys
 
 # Windows 控制台兼容：控制台保留系统编码（中文正常显示），只把无法编码的字符降级为替换符；
 # 输出被重定向/管道时统一用 UTF-8，避免日志文件乱码。日志里的 emoji（⚠/✅）不会再让服务崩溃。
-for _stream in (sys.stdout, sys.stderr):
-    try:
-        if _stream.isatty():
-            _stream.reconfigure(errors="replace")  # type: ignore[attr-defined]
-        else:
-            _stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
-    except Exception:
-        pass
+from oss.console import setup_console
+
+setup_console()
 
 from oss import __version__
 from oss.logger.logger import Logger
